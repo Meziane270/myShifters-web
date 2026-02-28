@@ -103,7 +103,8 @@ export default function AdminUserDetail() {
     const { user } = userData;
     const isHotel = user.role === 'hotel';
     const isWorker = user.role === 'worker';
-    const isSuspended = user.suspensions?.some(s => s.status === 'active');
+    // Priorité au champ is_suspended du user, sinon vérifier les suspensions actives
+    const isSuspended = user.is_suspended === true || user.suspensions?.some(s => s.status === 'active');
 
     const getDocTypeLabel = (type) => {
         const labels = {
@@ -264,6 +265,7 @@ export default function AdminUserDetail() {
                         Suspendre
                     </Button>
                 )}
+
             </div>
 
             {/* Tabs */}
@@ -398,11 +400,11 @@ export default function AdminUserDetail() {
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                                                     doc.status === 'verified' ? 'bg-emerald-100' :
-                                                    doc.status === 'rejected' ? 'bg-red-100' : 'bg-amber-100'
+                                                        doc.status === 'rejected' ? 'bg-red-100' : 'bg-amber-100'
                                                 }`}>
                                                     <FileText className={`w-5 h-5 ${
                                                         doc.status === 'verified' ? 'text-emerald-600' :
-                                                        doc.status === 'rejected' ? 'text-red-600' : 'text-amber-600'
+                                                            doc.status === 'rejected' ? 'text-red-600' : 'text-amber-600'
                                                     }`} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">

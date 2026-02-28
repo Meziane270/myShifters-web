@@ -282,7 +282,7 @@ async def register_worker(
             cv_url = upload_to_oci(cv_content, cv_object_name, cv_pdf.content_type or "application/pdf")
         except Exception as e:
             logger.error(f"Failed to upload CV to OCI: {e}")
-    
+
     try:
         skills_list = json.loads(skills)
     except:
@@ -298,7 +298,7 @@ async def register_worker(
         "skills": skills_list,
         "verification_status": "pending", "created_at": DateUtils.to_iso(DateUtils.now())
     }
-    
+
     # Enregistrer le CV comme document initial si présent
     if cv_url:
         cv_filename = cv_pdf.filename if cv_pdf else "CV.pdf"
@@ -540,15 +540,15 @@ async def update_worker_business(payload: Dict[Any, Any], current_user: dict = D
 @api_router.post("/shifts")
 async def create_shift(payload: ShiftCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != UserRole.HOTEL: raise HTTPException(status_code=403)
-    
+
     # Calcul de la commission de 15% pour l'hôtel
     data = payload.model_dump()
     data["hotel_hourly_rate"] = round(payload.hourly_rate * 1.15, 2)
-    
+
     new_shift = Shift(
-        hotel_id=current_user["id"], 
-        hotel_name=current_user.get("hotel_name", "Hôtel"), 
-        hotel_city=current_user.get("city"), 
+        hotel_id=current_user["id"],
+        hotel_name=current_user.get("hotel_name", "Hôtel"),
+        hotel_city=current_user.get("city"),
         **data
     )
     await db.shifts.insert_one(new_shift.model_dump())
@@ -564,8 +564,8 @@ async def get_shifts(service_type: Optional[str] = None):
 
 @api_router.get("/shifts/hotel")
 async def get_hotel_shifts(
-    current_user: dict = Depends(get_current_user),
-    status: Optional[str] = Query(None)
+        current_user: dict = Depends(get_current_user),
+        status: Optional[str] = Query(None)
 ):
     query = {"hotel_id": current_user["id"]}
     if status:
@@ -622,12 +622,12 @@ async def apply_to_shift(payload: Dict[Any, Any], current_user: dict = Depends(g
     if current_user["role"] != UserRole.WORKER: raise HTTPException(status_code=403)
     shift_id = payload.get("shift_id")
     if not shift_id: raise HTTPException(status_code=400, detail="shift_id is required")
-    
+
     # Vérifier si déjà postulé
     existing = await db.applications.find_one({"shift_id": shift_id, "worker_id": current_user["id"]})
     if existing:
         raise HTTPException(status_code=400, detail="Vous avez déjà postulé à cette mission")
-    
+
     app = {
         "id": str(uuid.uuid4()),
         "shift_id": shift_id,
@@ -852,15 +852,15 @@ async def create_invoice_for_completed_shift(shift_id: str, worker_id: str):
 async def get_hotel_stats(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != UserRole.HOTEL:
         raise HTTPException(status_code=403)
-    
+
     active_shifts = await db.shifts.count_documents({"hotel_id": current_user["id"], "status": ShiftStatus.OPEN})
-    
+
     # Récupérer les IDs des shifts de cet hôtel
     hotel_shifts = await db.shifts.find({"hotel_id": current_user["id"]}, {"id": 1}).to_list(None)
     shift_ids = [s["id"] for s in hotel_shifts]
-    
+
     pending_apps = await db.applications.count_documents({"shift_id": {"$in": shift_ids}, "status": ApplicationStatus.PENDING})
-    
+
     monthly_spend = 0
     return {
         "active_shifts": active_shifts,
@@ -1232,12 +1232,12 @@ async def admin_stats(current_user: dict = Depends(require_admin)):
 
 @api_router.get("/admin/users")
 async def admin_users(
-    current_user: dict = Depends(require_admin),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    role: Optional[str] = Query(None),
-    verification: Optional[str] = Query(None),
-    search: Optional[str] = Query(None)
+        current_user: dict = Depends(require_admin),
+        page: int = Query(1, ge=1),
+        limit: int = Query(20, ge=1, le=100),
+        role: Optional[str] = Query(None),
+        verification: Optional[str] = Query(None),
+        search: Optional[str] = Query(None)
 ):
     query = {}
     if role:
@@ -1318,7 +1318,7 @@ async def admin_get_user(user_id: str, current_user: dict = Depends(require_admi
 @api_router.get("/admin/verifications/pending")
 async def pending_verifs(current_user: dict = Depends(require_admin)):
     workers_raw = await db.users.find({"role": "worker", "verification_status": "pending"}).to_list(100)
-    hotels_raw = await db.users.find({"role": "hotel", "verification_status": "unverified"}).to_list(100)
+    hotels_raw = await db.users.find({"role": "hotel", "verification_status": "pending"}).to_list(100)
     # Enrichir chaque worker avec ses documents et son nom
     workers_enriched = []
     for w in workers_raw:
@@ -1470,9 +1470,9 @@ async def admin_update_document_status(doc_id: str, payload: Dict[Any, Any], cur
     return {"status": "success"}
 @api_router.get("/admin/support/threads")
 async def admin_threads(
-    current_user: dict = Depends(require_admin),
-    q: Optional[str] = Query(None),
-    status: Optional[str] = Query(None)
+        current_user: dict = Depends(require_admin),
+        q: Optional[str] = Query(None),
+        status: Optional[str] = Query(None)
 ):
     query = {}
     if status:
@@ -1499,11 +1499,11 @@ async def admin_update_thread(thread_id: str, payload: Dict[Any, Any], current_u
 
 @api_router.get("/admin/shifts")
 async def admin_shifts(
-    current_user: dict = Depends(require_admin),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    search: Optional[str] = Query(None)
+        current_user: dict = Depends(require_admin),
+        page: int = Query(1, ge=1),
+        limit: int = Query(20, ge=1, le=100),
+        status: Optional[str] = Query(None),
+        search: Optional[str] = Query(None)
 ):
     query = {}
     if status:
@@ -1560,12 +1560,12 @@ async def admin_assign_shift(shift_id: str, payload: Dict[Any, Any], current_use
 
 @api_router.get("/admin/audit")
 async def admin_audit(
-    current_user: dict = Depends(require_admin),
-    page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
-    action: Optional[str] = Query(None),
-    target_type: Optional[str] = Query(None),
-    search: Optional[str] = Query(None)
+        current_user: dict = Depends(require_admin),
+        page: int = Query(1, ge=1),
+        limit: int = Query(50, ge=1, le=200),
+        action: Optional[str] = Query(None),
+        target_type: Optional[str] = Query(None),
+        search: Optional[str] = Query(None)
 ):
     query = {}
     if action:
@@ -1585,7 +1585,7 @@ async def admin_audit(
         "total": total,
         "page": page,
         "limit": limit,
-         "pages": max(1, (total + limit - 1) // limit)
+        "pages": max(1, (total + limit - 1) // limit)
     }
 @api_router.get("/admin/audit/export")
 async def admin_audit_export(current_user: dict = Depends(require_admin)):
@@ -1616,10 +1616,10 @@ async def admin_audit_export(current_user: dict = Depends(require_admin)):
     )
 @api_router.get("/admin/reviews")
 async def admin_reviews(
-    current_user: dict = Depends(require_admin),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    verified: Optional[str] = Query(None)
+        current_user: dict = Depends(require_admin),
+        page: int = Query(1, ge=1),
+        limit: int = Query(20, ge=1, le=100),
+        verified: Optional[str] = Query(None)
 ):
     query = {}
     if verified == "true":
@@ -1868,15 +1868,93 @@ async def update_admin_settings(payload: Dict[Any, Any], current_user: dict = De
 
 @api_router.get("/admin/revenue")
 async def admin_revenue(current_user: dict = Depends(require_admin)):
-    shifts = await db.shifts.find({}).to_list(None)
-    total_revenue = 0
-    for s in shifts:
-        rate = s.get("hourly_rate", 0)
-        total_revenue += rate * 0.15
+    # Récupérer la commission depuis les settings admin
+    platform_settings = await db.settings.find_one({"type": "general"})
+    commission_rate = float(platform_settings.get("commission_rate", 0.15)) if platform_settings else 0.15
+
+    # CA = total des missions terminées (montant brut payé par l'hôtel)
+    completed_shifts = await db.shifts.find({"status": "completed"}).to_list(None)
+    total_ca = 0.0
+    for s in completed_shifts:
+        rate = float(s.get("hourly_rate", 0))
+        dates = s.get("dates", [])
+        start = s.get("start_time", "00:00")
+        end = s.get("end_time", "00:00")
+        try:
+            sh, sm = map(int, start.split(":"))
+            eh, em = map(int, end.split(":"))
+            hours = (eh * 60 + em - sh * 60 - sm) / 60
+        except:
+            hours = 0
+        nb_days = len(dates) if dates else 1
+        worker_amount = rate * hours * nb_days
+        hotel_amount = worker_amount * (1 + commission_rate)  # Hôtel paie worker + commission
+        total_ca += hotel_amount
+
+    commission_amount = round(total_ca * commission_rate / (1 + commission_rate), 2)  # Commission extraite du CA
+
+    # Factures workers : par statut
+    worker_invoices_raw = await db.invoices.find({"type": {"$ne": "hotel"}}).sort("created_at", -1).to_list(200)
+    worker_invoices = []
+    for inv in worker_invoices_raw:
+        inv = clean_mongo_doc(inv)
+        worker = await db.users.find_one({"id": inv.get("worker_id")}, {"first_name": 1, "last_name": 1, "email": 1})
+        if worker:
+            inv["worker_name"] = f"{worker.get('first_name','')} {worker.get('last_name','')}".strip()
+            inv["worker_email"] = worker.get("email")
+        worker_invoices.append(inv)
+
+    # Factures hôtels : envoyées par l'admin
+    hotel_invoices_raw = await db.invoices.find({"type": "hotel"}).sort("created_at", -1).to_list(200)
+    hotel_invoices = []
+    for inv in hotel_invoices_raw:
+        inv = clean_mongo_doc(inv)
+        hotel = await db.users.find_one({"id": inv.get("hotel_id")}, {"hotel_name": 1, "email": 1})
+        if hotel:
+            inv["hotel_name"] = hotel.get("hotel_name") or hotel.get("email", "")
+        hotel_invoices.append(inv)
+
     return {
-        "total_revenue": round(total_revenue, 2),
-        "commission_rate": 0.15
+        "total_ca": round(total_ca, 2),
+        "commission_amount": commission_amount,
+        "commission_rate": commission_rate,
+        "completed_shifts_count": len(completed_shifts),
+        "worker_invoices_to_review": [i for i in worker_invoices if i.get("status") == "submitted"],
+        "worker_invoices_pending_payment": [i for i in worker_invoices if i.get("status") in ["verified", "pending"]],
+        "worker_invoices_paid": [i for i in worker_invoices if i.get("status") == "paid"],
+        "hotel_invoices_to_send": [i for i in hotel_invoices if i.get("status") == "draft"],
+        "hotel_invoices_sent": [i for i in hotel_invoices if i.get("status") in ["sent", "paid"]],
     }
+
+@api_router.post("/admin/invoices/hotel")
+async def admin_upload_hotel_invoice(
+        hotel_id: str = Form(...),
+        file: UploadFile = File(...),
+        current_user: dict = Depends(require_admin)
+):
+    """L'admin drag&drop une facture pour un hôtel"""
+    hotel = await db.users.find_one({"id": hotel_id})
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hôtel non trouvé")
+    content = await file.read()
+    object_name = f"hotel-invoices/{hotel_id}/{uuid.uuid4()}-{file.filename}"
+    url = upload_to_oci(content, object_name, file.content_type or "application/pdf")
+    invoice_id = str(uuid.uuid4())
+    invoice = {
+        "id": invoice_id,
+        "type": "hotel",
+        "hotel_id": hotel_id,
+        "hotel_name": hotel.get("hotel_name") or hotel.get("email", ""),
+        "status": "sent",
+        "file_url": url,
+        "file_name": file.filename,
+        "object_name": object_name,
+        "created_at": DateUtils.to_iso(DateUtils.now()),
+        "sent_at": DateUtils.to_iso(DateUtils.now()),
+        "sent_by": current_user["id"],
+    }
+    await db.invoices.insert_one(invoice)
+    return {"status": "success", "invoice_id": invoice_id, "url": url}
 
 @api_router.post("/admin/jobs/auto-ratings")
 async def trigger_auto_ratings(current_user: dict = Depends(require_admin)):
