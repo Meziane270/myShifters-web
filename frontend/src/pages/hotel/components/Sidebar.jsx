@@ -31,7 +31,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
     const navItems = useMemo(() => [
         { path: "/hotel", icon: LayoutDashboard, label: "Tableau de bord", exact: true },
         { path: "/hotel/shifts", icon: CalendarDays, label: "Mes missions" },
-        { path: "/hotel/applications", icon: Users, label: "Candidatures" },
         { path: "/hotel/invoices", icon: FileText, label: "Mes Factures" },
         { path: "/hotel/ratings", icon: Star, label: "Avis Extras" },
         { path: "/hotel/profile", icon: UserIcon, label: "Mon Profil" },

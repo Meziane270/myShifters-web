@@ -583,6 +583,10 @@ async def get_hotel_shifts(
                     shift["worker_id"] = worker.get("id")
                     shift["worker_name"] = f"{worker.get('first_name','')} {worker.get('last_name','')}".strip()
                     shift["worker_email"] = worker.get("email")
+                    shift["worker_avatar"] = worker.get("avatar_url")
+                    # Note moyenne du worker
+                    ratings = await db.ratings.find({"worker_id": worker.get("id"), "verified": True}).to_list(50)
+                    shift["worker_avg_rating"] = round(sum(r.get("rating", 0) for r in ratings) / len(ratings), 1) if ratings else None
         result.append(shift)
     return result
 
@@ -594,16 +598,23 @@ async def delete_shift(shift_id: str, current_user: dict = Depends(get_current_u
     # Vérifier les droits
     if current_user["role"] != UserRole.ADMIN and shift.get("hotel_id") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Non autorisé")
-    # Empêcher la suppression si un worker a déjà été sélectionné (statut accepted)
+    # Empêcher la suppression si la mission est pourvue (statut filled ou accepted)
     if current_user["role"] != UserRole.ADMIN:
+        if shift.get("status") in ["filled", "completed"]:
+            raise HTTPException(status_code=400, detail="Impossible d'annuler une mission pourvue. Cette action est réservée à l'administration.")
         accepted_app = await db.applications.find_one({"shift_id": shift_id, "status": ApplicationStatus.ACCEPTED})
         if accepted_app:
-            raise HTTPException(status_code=400, detail="Impossible de supprimer une mission avec un worker sélectionné. Contactez l'administration.")
+            raise HTTPException(status_code=400, detail="Impossible d'annuler une mission avec un worker sélectionné. Contactez l'administration.")
     # Soft delete : marquer comme annulée (conservation du record)
     await db.shifts.update_one(
         {"id": shift_id},
         {"$set": {"status": "cancelled", "cancelled_at": DateUtils.to_iso(DateUtils.now()), "cancelled_by": current_user["id"]}}
     )
+    # Supprimer les candidatures en attente (pending/reviewed) — conserver celles accepted/completed
+    await db.applications.delete_many({
+        "shift_id": shift_id,
+        "status": {"$in": ["pending", "reviewed"]}
+    })
     await db.audit_logs.insert_one({
         "id": str(uuid.uuid4()),
         "admin_id": current_user["id"],
@@ -674,6 +685,39 @@ async def get_hotel_apps(current_user: dict = Depends(get_current_user)):
             app["worker_first_name"] = worker.get("first_name")
             app["worker_last_name"] = worker.get("last_name")
             app["worker_phone"] = worker.get("phone")
+        result.append(app)
+    return result
+
+@api_router.get("/applications/hotel/{shift_id}/workers")
+async def get_shift_workers(shift_id: str, current_user: dict = Depends(get_current_user)):
+    """Retourne les candidats d'une mission avec leur profil complet (photo, note, nom)"""
+    shift = await db.shifts.find_one({"id": shift_id})
+    if not shift:
+        raise HTTPException(status_code=404, detail="Mission non trouvée")
+    if current_user["role"] != UserRole.ADMIN and shift.get("hotel_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Non autorisé")
+    apps = await db.applications.find({"shift_id": shift_id}).to_list(100)
+    result = []
+    for app in apps:
+        app = clean_mongo_doc(app)
+        worker = await db.users.find_one({"id": app["worker_id"]}, {"password_hash": 0})
+        if worker:
+            worker = clean_mongo_doc(worker)
+            # Calculer la note moyenne
+            ratings = await db.ratings.find({"worker_id": worker["id"], "verified": True}).to_list(100)
+            avg = round(sum(r.get("rating", 0) for r in ratings) / len(ratings), 1) if ratings else None
+            app["worker_avatar"] = worker.get("avatar_url")
+            app["worker_first_name"] = worker.get("first_name")
+            app["worker_last_name"] = worker.get("last_name")
+            app["worker_email"] = worker.get("email")
+            app["worker_phone"] = worker.get("phone")
+            app["worker_avg_rating"] = avg
+            app["worker_ratings_count"] = len(ratings)
+            app["worker_skills"] = worker.get("skills", [])
+            app["worker_experience_years"] = worker.get("experience_years", 0)
+            app["worker_bio"] = worker.get("bio")
+            app["worker_siret"] = worker.get("siret")
+            app["worker_business_name"] = worker.get("business_name")
         result.append(app)
     return result
 
@@ -1406,6 +1450,8 @@ async def suspend_user(user_id: str, payload: Dict[Any, Any], current_user: dict
         })
     else:
         await db.users.update_one({"id": user_id}, {"$set": {"is_suspended": False, "suspended_until": None, "suspension_reason": None}})
+        # Mettre à jour les suspensions actives en base
+        await db.suspensions.update_many({"user_id": user_id, "status": "active"}, {"$set": {"status": "revoked", "revoked_at": DateUtils.to_iso(DateUtils.now())}})
         await db.audit_logs.insert_one({
             "id": str(uuid.uuid4()),
             "admin_id": current_user["id"],
@@ -1955,6 +2001,81 @@ async def admin_upload_hotel_invoice(
     }
     await db.invoices.insert_one(invoice)
     return {"status": "success", "invoice_id": invoice_id, "url": url}
+
+@api_router.get("/hotel/invoices/stats")
+async def get_hotel_invoice_stats(current_user: dict = Depends(get_current_user)):
+    """Retourne les stats financières de l'hôtel : CA, commission, TVA"""
+    if current_user["role"] != UserRole.HOTEL:
+        raise HTTPException(status_code=403, detail="Réservé aux hôtels")
+    platform_settings = await db.settings.find_one({"type": "general"})
+    commission_rate = float(platform_settings.get("commission_rate", 0.15)) if platform_settings else 0.15
+    tva_rate = float(platform_settings.get("tva_rate", 0.20)) if platform_settings else 0.20
+    # Missions terminées de cet hôtel
+    completed_shifts = await db.shifts.find({"hotel_id": current_user["id"], "status": "completed"}).to_list(500)
+    total_ca_ht = 0.0
+    for shift in completed_shifts:
+        dates = shift.get("dates") or [shift.get("date")]
+        nb_days = len([d for d in dates if d])
+        start = shift.get("start_time", "00:00")
+        end = shift.get("end_time", "00:00")
+        try:
+            from datetime import datetime as dt
+            h_start = dt.strptime(start, "%H:%M")
+            h_end = dt.strptime(end, "%H:%M")
+            hours = (h_end - h_start).seconds / 3600
+        except:
+            hours = 0
+        rate = float(shift.get("hourly_rate", 0))
+        worker_amount = nb_days * hours * rate
+        hotel_amount = worker_amount * (1 + commission_rate)
+        total_ca_ht += hotel_amount
+    commission_amount = round(total_ca_ht * commission_rate / (1 + commission_rate), 2)
+    tva_amount = round(total_ca_ht * tva_rate, 2)
+    total_ttc = round(total_ca_ht + tva_amount, 2)
+    # Factures reçues de l'admin
+    invoices = await db.invoices.find({"hotel_id": current_user["id"], "type": "hotel"}).sort("created_at", -1).to_list(100)
+    invoices_clean = [clean_mongo_doc(i) for i in invoices]
+    return {
+        "total_ca_ht": round(total_ca_ht, 2),
+        "commission_amount": commission_amount,
+        "tva_amount": tva_amount,
+        "total_ttc": total_ttc,
+        "commission_rate": commission_rate,
+        "tva_rate": tva_rate,
+        "completed_missions": len(completed_shifts),
+        "invoices": invoices_clean,
+    }
+
+@api_router.post("/hotel/invoices/{invoice_id}/payment")
+async def hotel_submit_payment(invoice_id: str, file: UploadFile = File(None), payment_method: str = Form("transfer"), current_user: dict = Depends(get_current_user)):
+    """L'hôtel transmet un avis de virement ou marque comme payé"""
+    if current_user["role"] != UserRole.HOTEL:
+        raise HTTPException(status_code=403, detail="Réservé aux hôtels")
+    invoice = await db.invoices.find_one({"id": invoice_id, "hotel_id": current_user["id"]})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Facture non trouvée")
+    update_data = {
+        "payment_method": payment_method,
+        "payment_submitted_at": DateUtils.to_iso(DateUtils.now()),
+        "status": "payment_submitted"
+    }
+    if file:
+        content = await file.read()
+        object_name = f"hotel-payments/{current_user['id']}/{uuid.uuid4()}-{file.filename}"
+        url = upload_to_oci(content, object_name, file.content_type or "application/pdf")
+        update_data["payment_proof_url"] = url
+        update_data["payment_proof_name"] = file.filename
+    await db.invoices.update_one({"id": invoice_id}, {"$set": update_data})
+    return {"status": "success", "message": "Paiement soumis"}
+
+@api_router.put("/admin/invoices/{invoice_id}/hotel-status")
+async def admin_update_hotel_invoice_status(invoice_id: str, body: dict = Body(...), current_user: dict = Depends(require_admin)):
+    """Admin marque une facture hôtel comme payée"""
+    status = body.get("status")
+    if status not in ["paid", "sent", "payment_submitted"]:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    await db.invoices.update_one({"id": invoice_id}, {"$set": {"status": status, "updated_at": DateUtils.to_iso(DateUtils.now())}})
+    return {"status": "success"}
 
 @api_router.post("/admin/jobs/auto-ratings")
 async def trigger_auto_ratings(current_user: dict = Depends(require_admin)):

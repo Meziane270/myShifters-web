@@ -103,8 +103,8 @@ export default function AdminUserDetail() {
     const { user } = userData;
     const isHotel = user.role === 'hotel';
     const isWorker = user.role === 'worker';
-    // Priorité au champ is_suspended du user, sinon vérifier les suspensions actives
-    const isSuspended = user.is_suspended === true || user.suspensions?.some(s => s.status === 'active');
+    // Se baser uniquement sur le champ is_suspended du user (source de vérité)
+    const isSuspended = user.is_suspended === true;
 
     const getDocTypeLabel = (type) => {
         const labels = {
