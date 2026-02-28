@@ -32,11 +32,13 @@ export const useWorkerData = () => {
         try {
             const authHeader = getAuthHeader();
             const headers = { ...authHeader };
-            
+
             if (isMultipart) {
-                // Pour multipart/form-data avec Axios, il vaut mieux laisser Axios gérer le Boundary
-                // en ne mettant pas explicitement le Content-Type ou en utilisant FormData
+                // Pour multipart/form-data, laisser Axios gérer le Content-Type + boundary
                 delete headers['Content-Type'];
+            } else {
+                // Forcer JSON pour les requêtes standard
+                headers['Content-Type'] = 'application/json';
             }
 
             const response = await axios.post(`${API}${endpoint}`, data, { headers });
@@ -55,7 +57,7 @@ export const useWorkerData = () => {
         setError(null);
         try {
             const response = await axios.put(`${API}${endpoint}`, data, {
-                headers: getAuthHeader()
+                headers: { ...getAuthHeader(), 'Content-Type': 'application/json' }
             });
             return response.data;
         } catch (err) {

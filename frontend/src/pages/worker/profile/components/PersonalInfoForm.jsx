@@ -64,7 +64,7 @@ export default function PersonalInfoForm({ profile, onSave, saving }) {
 
         const formDataFile = new FormData();
         formDataFile.append('file', file);
-        
+
         if (onSave) {
             await onSave(formDataFile, true);
         }
@@ -78,8 +78,12 @@ export default function PersonalInfoForm({ profile, onSave, saving }) {
             return;
         }
 
-        // On exclut avatar_url et phone (non modifiable) de l'envoi
-        const { avatar_url, phone, ...updateData } = formData;
+        // On exclut avatar_url, phone (non modifiable) et email de l'envoi
+        const { avatar_url, phone, email, ...updateData } = formData;
+        // Ne pas envoyer date_of_birth vide (garder la valeur existante)
+        if (!updateData.date_of_birth) {
+            delete updateData.date_of_birth;
+        }
         if (onSave) {
             await onSave(updateData);
         }

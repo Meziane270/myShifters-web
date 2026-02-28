@@ -17,7 +17,7 @@ export default function DocumentPreview({ fileUrl, fileName, fileType, status })
 
     return (
         <>
-            <button 
+            <button
                 onClick={() => setIsOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-brand hover:text-white text-slate-600 rounded-xl transition-all font-bold text-xs"
             >
@@ -25,7 +25,7 @@ export default function DocumentPreview({ fileUrl, fileName, fileType, status })
             </button>
 
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
                     <div className="relative w-full max-w-5xl h-[90vh] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
                         {/* Header */}
                         <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
@@ -39,8 +39,8 @@ export default function DocumentPreview({ fileUrl, fileName, fileType, status })
                                         {status && (
                                             <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-lg ${
                                                 status === 'verified' || status === 'vérifié' ? 'bg-emerald-100 text-emerald-700' :
-                                                status === 'rejected' || status === 'rejeté' ? 'bg-red-100 text-red-700' :
-                                                'bg-amber-100 text-amber-700'
+                                                    status === 'rejected' || status === 'rejeté' ? 'bg-red-100 text-red-700' :
+                                                        'bg-amber-100 text-amber-700'
                                             }`}>
                                                 {(status === 'verified' || status === 'vérifié') ? 'Vérifié' : (status === 'rejected' || status === 'rejeté') ? 'Rejeté' : 'Vérification'}
                                             </span>
@@ -50,15 +50,15 @@ export default function DocumentPreview({ fileUrl, fileName, fileType, status })
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <a 
-                                    href={fileUrl} 
+                                <a
+                                    href={fileUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="p-3 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-brand transition-all"
                                 >
                                     <Download className="h-6 w-6" />
                                 </a>
-                                <button 
+                                <button
                                     onClick={() => setIsOpen(false)}
                                     className="p-3 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-all"
                                 >
@@ -74,11 +74,11 @@ export default function DocumentPreview({ fileUrl, fileName, fileType, status })
                                     <Loader2 className="h-10 w-10 animate-spin text-brand" />
                                 </div>
                             )}
-                            
+
                             {isImage ? (
-                                <img 
-                                    src={fileUrl} 
-                                    alt={fileName} 
+                                <img
+                                    src={fileUrl}
+                                    alt={fileName}
                                     className="max-w-full max-h-full object-contain shadow-lg rounded-[2rem]"
                                     onLoad={() => setLoading(false)}
                                 />

@@ -9,12 +9,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SERVICE_TYPES = [
     { id: 'reception', label: 'Réception' },
     { id: 'housekeeping', label: 'Housekeeping' },
-    { id: 'maintenance', label: 'Maintenance Technique' },
     { id: 'restaurant', label: 'Restauration & Salle' },
-    { id: 'bar', label: 'Bar' },
-    { id: 'spa', label: 'Spa & Bien-être' },
-    { id: 'events', label: 'Événementiel' },
-    { id: 'other', label: 'Autre' },
+    { id: 'maintenance', label: 'Maintenance Technique' },
 ];
 
 export default function ExperienceList({ experiences = [], workerSkills = [], onAddExperience, onDeleteExperience, saving }) {
@@ -106,7 +102,7 @@ export default function ExperienceList({ experiences = [], workerSkills = [], on
     // Métiers disponibles à ajouter (pas déjà dans skills ni pending)
     const availableSkills = SERVICE_TYPES.filter(
         s => !skills.includes(s.id) && !skills.includes(s.label) &&
-             !pendingSkills.includes(s.id) && !pendingSkills.includes(s.label)
+            !pendingSkills.includes(s.id) && !pendingSkills.includes(s.label)
     );
 
     return (
