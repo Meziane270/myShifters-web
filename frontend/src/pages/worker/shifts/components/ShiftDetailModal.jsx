@@ -111,6 +111,12 @@ export default function ShiftDetailModal({ shift, application, isOpen, onClose, 
         return (rate * duration * days).toFixed(2);
     }, [shift]);
 
+    // Dates triées par ordre chronologique (hook avant tout return conditionnel)
+    const sortedDates = useMemo(() => {
+        if (!shift || !Array.isArray(shift.dates) || shift.dates.length === 0) return [];
+        return [...shift.dates].sort((a, b) => new Date(a) - new Date(b));
+    }, [shift]);
+
     if (!shift) return null;
 
     const formatDate = (dateStr) => {
@@ -125,12 +131,6 @@ export default function ShiftDetailModal({ shift, application, isOpen, onClose, 
             return dateStr;
         }
     };
-
-    // Dates triées par ordre chronologique
-    const sortedDates = useMemo(() => {
-        if (!Array.isArray(shift.dates) || shift.dates.length === 0) return [];
-        return [...shift.dates].sort((a, b) => new Date(a) - new Date(b));
-    }, [shift.dates]);
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
