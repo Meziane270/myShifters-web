@@ -51,8 +51,8 @@ export default function PolitiqueDeConfidentialite() {
             },
             org: {
                 brand: "MyShifters",
-                domain: "https://www.myshifters.eu",
-                contactEmail: "myshifters-extras@outlook.com",
+                domain: "https://www.myshifters.fr",
+                contactEmail: "contact@myshifters.fr",
                 legalRep: "Meziane Oulmas",
                 hostName: "Netlify, Inc.",
                 hostWebsite: "https://www.netlify.com",
@@ -150,8 +150,8 @@ export default function PolitiqueDeConfidentialite() {
             },
             org: {
                 brand: "MyShifters",
-                domain: "https://www.myshifters.eu",
-                contactEmail: "myshifters-extras@outlook.com",
+                domain: "https://www.myshifters.fr",
+                contactEmail: "contact@myshifters.fr",
                 legalRep: "Meziane Oulmas",
                 hostName: "Netlify, Inc.",
                 hostWebsite: "https://www.netlify.com",

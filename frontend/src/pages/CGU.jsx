@@ -47,7 +47,7 @@ export default function CGU() {
             summary: "Sommaire",
             contact: "Contact",
             contactDesc: "Pour toute question relative à l’utilisation du site :",
-            domain: "www.myshifters.eu",
+            domain: "www.myshifters.fr",
             footer: {
                 legal: "Mentions légales",
                 privacy: "Politique de confidentialité",
@@ -116,7 +116,7 @@ export default function CGU() {
             summary: "Summary",
             contact: "Contact",
             contactDesc: "For any questions regarding the use of the site:",
-            domain: "www.myshifters.eu",
+            domain: "www.myshifters.fr",
             footer: {
                 legal: "Legal notice",
                 privacy: "Privacy policy",
@@ -303,9 +303,9 @@ export default function CGU() {
                                 <span className="font-semibold text-foreground">{content.content.editeur.email}</span>{" "}
                                 <a
                                     className="underline underline-offset-4 hover:opacity-80"
-                                    href="mailto:myshifters-extras@outlook.com"
+                                    href="mailto:contact@myshifters.fr"
                                 >
-                                    myshifters-extras@outlook.com
+                                    contact@myshifters.fr
                                 </a>
                             </li>
                         </ul>
@@ -338,9 +338,9 @@ export default function CGU() {
                             {content.content.miseEnRelationContact}{" "}
                             <a
                                 className="underline underline-offset-4 hover:opacity-80"
-                                href="mailto:myshifters-extras@outlook.com"
+                                href="mailto:contact@myshifters.fr"
                             >
-                                myshifters-extras@outlook.com
+                                contact@myshifters.fr
                             </a>
                         </p>
                     </section>
@@ -415,10 +415,10 @@ export default function CGU() {
                             <div className="text-lg font-semibold">{content.contact}</div>
                             <p className="mt-1 text-sm text-muted-foreground">{content.contactDesc}</p>
                             <a
-                                href="mailto:myshifters-extras@outlook.com"
+                                href="mailto:contact@myshifters.fr"
                                 className="mt-3 inline-flex items-center rounded-md bg-brand px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:opacity-90"
                             >
-                                myshifters-extras@outlook.com
+                                contact@myshifters.fr
                             </a>
                         </div>
                     </div>

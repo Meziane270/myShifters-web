@@ -71,132 +71,132 @@ const useInView = (options = {}) => {
 };
 // ========== CONTENU I18N COMPLET ==========
 const CONTENT = {
-      fr: {
-        nav: {
-          home: "Accueil",
-          about: "À propos",
-          services: "Services",
-          why: "Nous choisir",
-          reviews: "Avis"
-        },
-        hero: {
-          badge: "✨ Lancement récent",
-          title: "L'excellence hôtelière, même en renfort",
-          desc: "My Shifters accompagne les hôtels, résidences et établissements haut de gamme dans la gestion de leurs besoins en personnel extra. Réception, restauration, housekeeping ou maintenance : des professionnels opérationnels, disponibles rapidement, pour garantir une expérience client irréprochable.",
-          ctaPrimary: "Créer un compte",
-          ctaSecondary: "Voir nos services",
-          stats: [
-            { icon: Clock, label: "Réactivité", value: "24h", color: "from-brand/15", iconColor: "text-brand" },
-            { icon: ShieldCheck, label: "Sélection & standards", value: "Qualité", color: "from-emerald-500/15", iconColor: "text-emerald-600" },
-            { icon: CheckCircle, label: "Process rapide", value: "Simple", color: "from-amber-500/15", iconColor: "text-amber-600" },
-          ]
-        },
-        about: {
-          kicker: "MY SHIFTERS",
-          title: "Votre partenaire dans l'hôtellerie",
-          text: "MY SHIFTERS est un partenaire spécialisé dans la mise à disposition de personnel hôtelier qualifié en extra. Nous intervenons auprès d'hôtels, résidences et établissements touristiques pour répondre aux pics d'activité, absences imprévues ou besoins ponctuels.",
-          bullets: [
-            "Des professionnels opérationnels, sélectionnés pour leur savoir-faire",
-            "Une réponse rapide et flexible, adaptée à vos contraintes",
-            "Un interlocuteur dédié et un suivi qualité",
-          ],
-          cta: "Voir ce qui nous différencie"
-        },
-        services: {
-          title: "Nos services",
-          lead: "Nous couvrons l'ensemble des besoins en extras pour les établissements hôteliers.",
-          cta: {
-            title: "Besoin de renfort rapidement ?",
-            desc: "Créez un compte et demandez des extras en quelques minutes."
-          },
-          items: [
-            {
-              icon: Hotel,
-              title: "Extras en Réception",
-              desc: "Agents d'accueil, night auditors, gestion des arrivées et départs, standard téléphonique et relation client.",
-              bullets: [
-                "Accueil professionnel et chaleureux",
-                "Gestion efficace des check-ins/check-outs",
-                "Flexibilité pour missions ponctuelles ou régulières"
-              ]
-            },
-            {
-              icon: BedDouble,
-              title: "Housekeeping",
-              desc: "Femmes et valets de chambre expérimentés, respect des procédures, discrétion et efficacité.",
-              bullets: [
-                "Nettoyage complet chambres & communs",
-                "Respect strict des normes d'hygiène",
-                "Discrétion et respect de la vie privée"
-              ]
-            },
-            {
-              icon: Wrench,
-              title: "Maintenance technique",
-              desc: "Interventions rapides, maintenance légère, assistance technique et gestion des urgences.",
-              bullets: [
-                "Interventions rapides",
-                "Préventif & correctif",
-                "Électricité, plomberie, climatisation…"
-              ]
-            },
-            {
-              icon: Utensils,
-              title: "Restauration & salle",
-              desc: "Serveurs, runners, barmen pour petits-déjeuners, services à la carte ou événements.",
-              bullets: [
-                "Service en salle pro",
-                "Barmen qualifiés",
-                "Standards d'hygiène respectés"
-              ]
-            }
-          ]
-        },
-        why: {
-          title: "Pourquoi choisir My Shifters ?",
-          lead: "Découvrez ce qui fait de nous votre partenaire idéal pour le personnel hôtelier extra.",
-          text: "Chez MYSHIFTERS, nous ne faisons pas que fournir du personnel. Nous mettons à votre disposition des micro-entrepreneurs qualifiés, disponibles rapidement et sélectionnés pour leur professionnalisme. Notre approche flexible vous permet de faire face aux imprévus, aux pics d'activité et aux besoins saisonniers tout en maintenant un niveau de service irréprochable pour vos clients.",
-          points: [
-            { icon: Clock, title: "Réactivité 24h", desc: "Intervention en moins de 24h. Disponibilité 7j/7 pour les situations critiques." },
-            { icon: Users, title: "Flexibilité", desc: "Durée, compétences, horaires, budget : nous adaptons nos équipes à votre besoin." },
-            { icon: ShieldCheck, title: "Qualité", desc: "Extras sélectionnés, formés aux standards hôteliers et régulièrement évalués." },
-            { icon: BadgeEuro, title: "Transparence", desc: "Pas de frais cachés. Tarifs clairs et facturation précise." },
-            { icon: BriefcaseBusiness, title: "Expertise", desc: "7 ans d'expérience dans le secteur hôtelier : vos contraintes, on les connaît." },
-            { icon: Headphones, title: "Accompagnement", desc: "Un interlocuteur dédié et un suivi qualité tout au long de la mission." }
-          ]
-        },
-        reviews: {
-          badge: "Avis",
-          title: "Ils nous font confiance",
-          desc: "Retours de nos partenaires hôteliers.",
-          empty: "Aucun avis pour le moment. Revenez bientôt !",
-          verified: "Vérifié",
-          partner: "Partenaire hôtel",
-          response: "Réponse de l'établissement",
-          prev: "Précédent",
-          next: "Suivant"
-        },
-        footer: {
-          about: "My Shifters accompagne les hôtels, résidences et établissements haut de gamme dans la gestion de leurs besoins en personnel extra.",
-          cta: "Demander un extra",
-          useful: "Liens utiles",
-          ourServices: "Nos services",
-          contact: "Contactez-nous",
-          availability: "Disponible 7j/7 pour vos besoins urgents",
-          emergency: "Urgence personnel ? Appelez-nous !",
-          copyright: "Tous droits réservés.",
-          bookCall: "Programmer un appel",
-          bookCallDesc: "Échangez 30 min avec notre équipe",
-          phone: "+33 7 49 06 03 05",
-          email: "myshifters-extras@outlook.com",
-          links: {
-            legal: "Mentions légales",
-            privacy: "Politique de confidentialité",
-            cgu: "Conditions générales d'utilisation",
-            cgs: "Conditions générales de service"
-          }
-        }
+  fr: {
+    nav: {
+      home: "Accueil",
+      about: "À propos",
+      services: "Services",
+      why: "Nous choisir",
+      reviews: "Avis"
+    },
+    hero: {
+      badge: "✨ Lancement récent",
+      title: "L'excellence hôtelière, même en renfort",
+      desc: "My Shifters accompagne les hôtels, résidences et établissements haut de gamme dans la gestion de leurs besoins en personnel extra. Réception, restauration, housekeeping ou maintenance : des professionnels opérationnels, disponibles rapidement, pour garantir une expérience client irréprochable.",
+      ctaPrimary: "Créer un compte",
+      ctaSecondary: "Voir nos services",
+      stats: [
+        { icon: Clock, label: "Réactivité", value: "24h", color: "from-brand/15", iconColor: "text-brand" },
+        { icon: ShieldCheck, label: "Sélection & standards", value: "Qualité", color: "from-emerald-500/15", iconColor: "text-emerald-600" },
+        { icon: CheckCircle, label: "Process rapide", value: "Simple", color: "from-amber-500/15", iconColor: "text-amber-600" },
+      ]
+    },
+    about: {
+      kicker: "MY SHIFTERS",
+      title: "Votre partenaire dans l'hôtellerie",
+      text: "MY SHIFTERS est un partenaire spécialisé dans la mise à disposition de personnel hôtelier qualifié en extra. Nous intervenons auprès d'hôtels, résidences et établissements touristiques pour répondre aux pics d'activité, absences imprévues ou besoins ponctuels.",
+      bullets: [
+        "Des professionnels opérationnels, sélectionnés pour leur savoir-faire",
+        "Une réponse rapide et flexible, adaptée à vos contraintes",
+        "Un interlocuteur dédié et un suivi qualité",
+      ],
+      cta: "Voir ce qui nous différencie"
+    },
+    services: {
+      title: "Nos services",
+      lead: "Nous couvrons l'ensemble des besoins en extras pour les établissements hôteliers.",
+      cta: {
+        title: "Besoin de renfort rapidement ?",
+        desc: "Créez un compte et demandez des extras en quelques minutes."
       },
+      items: [
+        {
+          icon: Hotel,
+          title: "Extras en Réception",
+          desc: "Agents d'accueil, night auditors, gestion des arrivées et départs, standard téléphonique et relation client.",
+          bullets: [
+            "Accueil professionnel et chaleureux",
+            "Gestion efficace des check-ins/check-outs",
+            "Flexibilité pour missions ponctuelles ou régulières"
+          ]
+        },
+        {
+          icon: BedDouble,
+          title: "Housekeeping",
+          desc: "Femmes et valets de chambre expérimentés, respect des procédures, discrétion et efficacité.",
+          bullets: [
+            "Nettoyage complet chambres & communs",
+            "Respect strict des normes d'hygiène",
+            "Discrétion et respect de la vie privée"
+          ]
+        },
+        {
+          icon: Wrench,
+          title: "Maintenance technique",
+          desc: "Interventions rapides, maintenance légère, assistance technique et gestion des urgences.",
+          bullets: [
+            "Interventions rapides",
+            "Préventif & correctif",
+            "Électricité, plomberie, climatisation…"
+          ]
+        },
+        {
+          icon: Utensils,
+          title: "Restauration & salle",
+          desc: "Serveurs, runners, barmen pour petits-déjeuners, services à la carte ou événements.",
+          bullets: [
+            "Service en salle pro",
+            "Barmen qualifiés",
+            "Standards d'hygiène respectés"
+          ]
+        }
+      ]
+    },
+    why: {
+      title: "Pourquoi choisir My Shifters ?",
+      lead: "Découvrez ce qui fait de nous votre partenaire idéal pour le personnel hôtelier extra.",
+      text: "Chez MYSHIFTERS, nous ne faisons pas que fournir du personnel. Nous mettons à votre disposition des micro-entrepreneurs qualifiés, disponibles rapidement et sélectionnés pour leur professionnalisme. Notre approche flexible vous permet de faire face aux imprévus, aux pics d'activité et aux besoins saisonniers tout en maintenant un niveau de service irréprochable pour vos clients.",
+      points: [
+        { icon: Clock, title: "Réactivité 24h", desc: "Intervention en moins de 24h. Disponibilité 7j/7 pour les situations critiques." },
+        { icon: Users, title: "Flexibilité", desc: "Durée, compétences, horaires, budget : nous adaptons nos équipes à votre besoin." },
+        { icon: ShieldCheck, title: "Qualité", desc: "Extras sélectionnés, formés aux standards hôteliers et régulièrement évalués." },
+        { icon: BadgeEuro, title: "Transparence", desc: "Pas de frais cachés. Tarifs clairs et facturation précise." },
+        { icon: BriefcaseBusiness, title: "Expertise", desc: "7 ans d'expérience dans le secteur hôtelier : vos contraintes, on les connaît." },
+        { icon: Headphones, title: "Accompagnement", desc: "Un interlocuteur dédié et un suivi qualité tout au long de la mission." }
+      ]
+    },
+    reviews: {
+      badge: "Avis",
+      title: "Ils nous font confiance",
+      desc: "Retours de nos partenaires hôteliers.",
+      empty: "Aucun avis pour le moment. Revenez bientôt !",
+      verified: "Vérifié",
+      partner: "Partenaire hôtel",
+      response: "Réponse de l'établissement",
+      prev: "Précédent",
+      next: "Suivant"
+    },
+    footer: {
+      about: "My Shifters accompagne les hôtels, résidences et établissements haut de gamme dans la gestion de leurs besoins en personnel extra.",
+      cta: "Demander un extra",
+      useful: "Liens utiles",
+      ourServices: "Nos services",
+      contact: "Contactez-nous",
+      availability: "Disponible 7j/7 pour vos besoins urgents",
+      emergency: "Urgence personnel ? Appelez-nous !",
+      copyright: "Tous droits réservés.",
+      bookCall: "Programmer un appel",
+      bookCallDesc: "Échangez 30 min avec notre équipe",
+      phone: "+33 7 49 06 03 05",
+      email: "contact@myshifters.fr",
+      links: {
+        legal: "Mentions légales",
+        privacy: "Politique de confidentialité",
+        cgu: "Conditions générales d'utilisation",
+        cgs: "Conditions générales de service"
+      }
+    }
+  },
   en: {
     nav: {
       home: "Home",
@@ -314,7 +314,7 @@ const CONTENT = {
       bookCall: "Book a call",
       bookCallDesc: "Chat 30 min with our team",
       phone: "+33 7 49 06 03 05",
-      email: "myshifters-extras@outlook.com",
+      email: "contact@myshifters.fr",
       links: {
         legal: "Legal notice",
         privacy: "Privacy policy",
