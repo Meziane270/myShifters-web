@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CreditCard, Building, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,19 +26,27 @@ export default function PaymentInfoSection({
         same_as_personal: false
     });
 
-    // Synchronisation avec les props
+    // Flags d'initialisation : on ne synchronise qu'une seule fois depuis les props
+    // pour éviter d'écraser les saisies en cours lors d'un re-render parent.
+    const payoutInitialized = useRef(false);
+    const aeInitialized = useRef(false);
+
     useEffect(() => {
-        if (payoutAccount) {
+        if (payoutAccount && !payoutInitialized.current) {
             setPayoutForm({
                 iban: payoutAccount.iban || "",
                 bic: payoutAccount.bic || "",
                 status: payoutAccount.status || "pending"
             });
+            // Marquer comme initialisé uniquement si on a des données réelles
+            if (payoutAccount.iban || payoutAccount.bic) {
+                payoutInitialized.current = true;
+            }
         }
     }, [payoutAccount]);
 
     useEffect(() => {
-        if (aeInfo) {
+        if (aeInfo && !aeInitialized.current) {
             setAeForm({
                 has_ae_status: true,
                 siret: aeInfo.siret || profile?.siret || "",
@@ -47,6 +55,9 @@ export default function PaymentInfoSection({
                 billing_postal_code: aeInfo.billing_postal_code || profile?.billing_postal_code || profile?.postal_code || "",
                 same_as_personal: aeInfo.same_as_personal || false
             });
+            if (aeInfo.siret) {
+                aeInitialized.current = true;
+            }
         }
     }, [aeInfo, profile]);
 
@@ -75,6 +86,9 @@ export default function PaymentInfoSection({
             toast.error("L'IBAN et le BIC sont requis");
             return;
         }
+        // Après sauvegarde réussie, on réinitialise le flag pour permettre
+        // la re-synchronisation avec les nouvelles données du serveur
+        payoutInitialized.current = false;
         await onSavePayout(payoutForm);
     };
 
@@ -84,6 +98,7 @@ export default function PaymentInfoSection({
             toast.error("Le SIRET est requis si vous avez le statut AE");
             return;
         }
+        aeInitialized.current = false;
         await onSaveAe(aeForm);
     };
 
@@ -124,6 +139,7 @@ export default function PaymentInfoSection({
                                     value={payoutForm.iban}
                                     onChange={handlePayoutChange}
                                     placeholder="FR76 0000 0000 0000 0000 0000 000"
+                                    autoComplete="off"
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-600 focus:ring-4 focus:ring-violet-600/5 outline-none transition-all"
                                 />
                             </div>
@@ -135,6 +151,7 @@ export default function PaymentInfoSection({
                                     value={payoutForm.bic}
                                     onChange={handlePayoutChange}
                                     placeholder="XXXXXXXX"
+                                    autoComplete="off"
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-600 focus:ring-4 focus:ring-violet-600/5 outline-none transition-all"
                                 />
                             </div>
@@ -181,6 +198,7 @@ export default function PaymentInfoSection({
                                     value={aeForm.siret}
                                     onChange={handleAeChange}
                                     placeholder="14 chiffres"
+                                    autoComplete="off"
                                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-600 focus:ring-4 focus:ring-violet-600/5 outline-none transition-all"
                                 />
                             </div>

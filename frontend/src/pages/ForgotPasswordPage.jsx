@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect} from "react";
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
@@ -16,11 +16,14 @@ const ASSETS = {
 };
 
 export default function ForgotPasswordPage() {
-    const { theme, setTheme } = useTheme();
+    const { theme, resolvedTheme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    const currentTheme = mounted ? (resolvedTheme || theme) : "light";
     const { i18n } = useTranslation();
 
     const lang = i18n.language?.startsWith("en") ? "en" : "fr";
-    const isLight = theme === "light";
+    const isLight = currentTheme === "light";
 
     const copy = useMemo(() => {
         const fr = {
@@ -140,11 +143,11 @@ export default function ForgotPasswordPage() {
                             </button>
 
                             <button
-                                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                                onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                                 className={topIconBtnClass}
                                 aria-label="Toggle theme"
                             >
-                                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                                {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                             </button>
                         </div>
                     </div>

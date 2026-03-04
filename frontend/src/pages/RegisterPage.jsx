@@ -59,7 +59,10 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const currentTheme = mounted ? (resolvedTheme || theme) : "light";
   const { i18n } = useTranslation();
 
   const lang = i18n.language?.startsWith("en") ? "en" : "fr";
@@ -287,8 +290,8 @@ export default function RegisterPage() {
     setFormData((prev) => {
       const skills = prev.skills || [];
       const newSkills = skills.includes(skillId)
-        ? skills.filter((s) => s !== skillId)
-        : [...skills, skillId];
+          ? skills.filter((s) => s !== skillId)
+          : [...skills, skillId];
       return { ...prev, skills: newSkills };
     });
   }, []);
@@ -398,11 +401,11 @@ export default function RegisterPage() {
               </button>
 
               <button
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                   className="inline-flex items-center justify-center rounded-lg border bg-background/50 p-2 backdrop-blur hover:bg-background/70"
                   aria-label="Toggle theme"
               >
-                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -550,10 +553,10 @@ export default function RegisterPage() {
                           onBack={handleBackToRoleSelection}
                           handleSkillToggle={handleSkillToggle}
                           SERVICE_TYPES={[
-                              { id: 'reception', label: 'Réception', icon: '🛎️' },
-                              { id: 'housekeeping', label: 'Housekeeping', icon: '🧹' },
-                              { id: 'maintenance', label: 'Maintenance', icon: '🛠️' },
-                              { id: 'restaurant', label: 'Restauration', icon: '🍽️' }
+                            { id: 'reception', label: 'Réception', icon: '🛎️' },
+                            { id: 'housekeeping', label: 'Housekeeping', icon: '🧹' },
+                            { id: 'maintenance', label: 'Maintenance', icon: '🛠️' },
+                            { id: 'restaurant', label: 'Restauration', icon: '🍽️' }
                           ]}
                       />
                   )}

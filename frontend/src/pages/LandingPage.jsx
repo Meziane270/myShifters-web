@@ -333,7 +333,10 @@ const scrollToId = (id) => {
 
 // ========== COMPOSANT PRINCIPAL ==========
 export default function LandingPage() {
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const currentTheme = mounted ? (resolvedTheme || theme) : "light";
   const { i18n } = useTranslation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [reviews, setReviews] = useState([]);
@@ -485,11 +488,11 @@ export default function LandingPage() {
                 </button>
 
                 <button
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                     className="inline-flex items-center justify-center rounded-md border p-2 hover:bg-muted/60"
                     aria-label="Toggle theme"
                 >
-                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
 
                 <button

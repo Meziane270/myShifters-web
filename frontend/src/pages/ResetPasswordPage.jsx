@@ -20,11 +20,14 @@ export default function ResetPasswordPage() {
     const token = searchParams.get("token");
     const navigate = useNavigate();
 
-    const { theme, setTheme } = useTheme();
+    const { theme, resolvedTheme, setTheme } = useTheme();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+    const currentTheme = mounted ? (resolvedTheme || theme) : "light";
     const { i18n } = useTranslation();
 
     const lang = i18n.language?.startsWith("en") ? "en" : "fr";
-    const isLight = theme === "light";
+    const isLight = currentTheme === "light";
 
     const copy = useMemo(() => {
         const fr = {
@@ -172,10 +175,10 @@ export default function ResetPasswordPage() {
                         </button>
 
                         <button
-                            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                            onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                             className={topIconBtnClass}
                         >
-                            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                            {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                         </button>
                     </div>
                 </div>

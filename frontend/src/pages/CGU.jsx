@@ -20,13 +20,14 @@ const scrollToId = (id) => {
 };
 
 export default function CGU() {
-    const { theme, setTheme } = useTheme();
+    const { theme, resolvedTheme, setTheme } = useTheme();
     const { i18n } = useTranslation();
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+    const currentTheme = mounted ? (resolvedTheme || theme) : "light";
 
     const lang = i18n.language?.startsWith("en") ? "en" : "fr";
 
@@ -223,11 +224,11 @@ export default function CGU() {
                             </button>
 
                             <button
-                                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                                onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                                 className="inline-flex items-center justify-center rounded-md border p-2 hover:bg-muted/60"
                                 aria-label="Toggle theme"
                             >
-                                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                                {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                             </button>
 
                             <Button variant="outline" asChild className="gap-2">

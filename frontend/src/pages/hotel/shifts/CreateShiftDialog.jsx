@@ -80,7 +80,7 @@ export default function CreateShiftDialog({ isOpen, onClose, onSuccess, canAct, 
 
     const removeDate = useCallback((dateToRemove) => {
         setSelectedDates(prev => {
-            const newDates = prev.filter(d => 
+            const newDates = prev.filter(d =>
                 safeFormat(d, "yyyy-MM-dd") !== safeFormat(dateToRemove, "yyyy-MM-dd")
             );
             setFormData(prevForm => ({
@@ -101,6 +101,13 @@ export default function CreateShiftDialog({ isOpen, onClose, onSuccess, canAct, 
         }
         if (!formData.dates || formData.dates.length === 0) {
             toast.error("Veuillez sélectionner au moins une date.");
+            return false;
+        }
+        // Validation anti-passé côté client
+        const todayStr = new Date().toISOString().split("T")[0];
+        const pastDates = formData.dates.filter(d => d < todayStr);
+        if (pastDates.length > 0) {
+            toast.error(`Les dates suivantes sont dans le passé : ${pastDates.join(", ")}. Veuillez sélectionner des dates à partir d'aujourd'hui.`);
             return false;
         }
         if (!formData.start_time || !formData.end_time) {
@@ -234,7 +241,11 @@ export default function CreateShiftDialog({ isOpen, onClose, onSuccess, canAct, 
                                     mode="multiple"
                                     selected={selectedDates}
                                     onSelect={handleDateSelect}
-                                    disabled={(date) => date < new Date().setHours(0,0,0,0)}
+                                    disabled={(date) => {
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        return date < today;
+                                    }}
                                     initialFocus
                                     className="bg-card"
                                 />
@@ -250,8 +261,8 @@ export default function CreateShiftDialog({ isOpen, onClose, onSuccess, canAct, 
                                         className="bg-violet-600/10 text-violet-600 border-violet-600/20 flex items-center gap-1"
                                     >
                                         {safeFormat(date, "dd/MM/yyyy")}
-                                        <X 
-                                            className="w-3 h-3 cursor-pointer hover:text-red-500" 
+                                        <X
+                                            className="w-3 h-3 cursor-pointer hover:text-red-500"
                                             onClick={() => removeDate(date)}
                                         />
                                     </Badge>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
@@ -30,8 +30,11 @@ const ASSETS = {
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const { i18n } = useTranslation();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const lang = i18n.language?.startsWith("en") ? "en" : "fr";
 
@@ -83,7 +86,10 @@ export default function LoginPage() {
     return lang === "en" ? en : fr;
   }, [lang]);
 
-  const isLight = theme === "light";
+  // resolvedTheme tient compte du thème système ; on attend le montage pour éviter
+  // l'hydratation incorrecte (le toggle ne fonctionnait pas avant le premier render)
+  const currentTheme = mounted ? (resolvedTheme || theme) : "light";
+  const isLight = currentTheme !== "dark";
 
   const topBtnClass = isLight
       ? "inline-flex items-center gap-2 rounded-lg border bg-background/70 px-3 py-2 text-sm text-foreground/80 backdrop-blur hover:bg-background/80"
@@ -168,11 +174,11 @@ export default function LoginPage() {
                 </button>
 
                 <button
-                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    onClick={() => setTheme(currentTheme === "dark" ? "light" : "dark")}
                     className={topIconBtnClass}
                     aria-label="Toggle theme"
                 >
-                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {currentTheme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                 </button>
               </div>
             </div>

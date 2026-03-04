@@ -162,6 +162,7 @@ export default function ShiftsPage() {
                             onDelete={handleDeleteShift}
                             canAct={canAct}
                             isBlocked={isBlocked}
+                            onRefresh={fetchShifts}
                         />
                     ))}
                 </div>
