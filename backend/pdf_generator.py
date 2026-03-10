@@ -122,7 +122,7 @@ def generate_mission_report_pdf(mission_data, worker_data, hotel_data):
     }
     pdf = MissionReportPDF(mission_data, worker_data, hotel_data, myshifters_data)
     pdf.create_report()
-    return pdf.output(dest=\'S\').encode(\'latin-1\') # Return as bytes
+    return pdf.output(dest='S').encode('latin-1') # Return as bytes
 
 
 class InvoicePDF(FPDF):
@@ -282,7 +282,7 @@ def generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data):
     }
     pdf = InvoicePDF(invoice_data, mission_data, worker_data, hotel_data, myshifters_data)
     pdf.create_invoice()
-    return pdf.output(dest=\'S\').encode(\'latin-1\')
+    return pdf.output(dest='S').encode('latin-1')
 
 def generate_mission_report_pdf(mission_data, worker_data, hotel_data):
     myshifters_data = {
@@ -295,4 +295,4 @@ def generate_mission_report_pdf(mission_data, worker_data, hotel_data):
     }
     pdf = MissionReportPDF(mission_data, worker_data, hotel_data, myshifters_data)
     pdf.create_report()
-    return pdf.output(dest=\'S\').encode(\'latin-1\') # Return as bytes
+    return pdf.output(dest='S').encode('latin-1') # Return as bytes
