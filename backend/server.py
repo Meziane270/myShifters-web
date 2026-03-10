@@ -142,7 +142,12 @@ app.add_middleware(
 )
 
 try:
-    client = AsyncIOMotorClient(MONGO_URL, tls=True, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
+    # Déterminer si TLS est nécessaire (pour MongoDB Atlas vs local)
+    use_tls = "mongodb+srv://" in MONGO_URL or "mongodb.net" in MONGO_URL
+    if use_tls:
+        client = AsyncIOMotorClient(MONGO_URL, tls=True, tlsCAFile=certifi.where(), serverSelectionTimeoutMS=5000)
+    else:
+        client = AsyncIOMotorClient(MONGO_URL, serverSelectionTimeoutMS=5000)
     db = client[DB_NAME]
 except Exception as e:
     logger.error(f"Failed to connect to MongoDB: {e}")
@@ -185,6 +190,7 @@ class ShiftStatus(str, Enum):
 
 class ApplicationStatus(str, Enum):
     PENDING = "pending"
+    REVIEWED = "reviewed"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
     COMPLETED = "completed"
