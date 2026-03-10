@@ -34,3 +34,5 @@ cloudinary>=1.36.0
 
 # Oracle Cloud Infrastructure SDK
 oci>=2.139.0
+# PDF Generation
+fpdf2>=2.7.8

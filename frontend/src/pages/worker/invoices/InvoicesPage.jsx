@@ -1,32 +1,25 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { 
-    FileText, 
-    Download, 
-    Calendar, 
-    Clock, 
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+    FileText,
+    Download,
+    Calendar,
+    Clock,
     Loader2,
     CheckCircle2,
     Clock4,
-    Send,
     TrendingUp,
-    Upload,
-    X,
-    AlertCircle
+    AlertCircle,
+    FileCheck
 } from "lucide-react";
 import { useWorkerData } from "../../../hooks/useWorkerData";
-import { toast } from "sonner";
-import axios from "axios";
 import { useAuth } from "../../../context/AuthContext";
-
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+import { toast } from "sonner";
 
 export default function InvoicesPage() {
     const { fetchData, loading } = useWorkerData();
-    const { getAuthHeader } = useAuth();
     const [invoices, setInvoices] = useState([]);
     const [earnings, setEarnings] = useState({ total: 0, paid: 0, pending: 0 });
-    const [activeTab, setActiveTab] = useState("to_transmit");
-    const [uploading, setUploading] = useState({});
+    const [activeTab, setActiveTab] = useState("pending");
 
     const loadData = useCallback(async () => {
         try {
@@ -45,42 +38,19 @@ export default function InvoicesPage() {
         loadData();
     }, [loadData]);
 
-    const handleUploadInvoice = async (invoiceId, file) => {
-        if (!file) return;
-        if (file.type !== 'application/pdf') {
-            toast.error("Seuls les fichiers PDF sont acceptés");
-            return;
-        }
-        setUploading(prev => ({ ...prev, [invoiceId]: true }));
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('invoice_id', invoiceId);
-        try {
-            await axios.post(`${API}/worker/invoices/${invoiceId}/upload`, formData, {
-                headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' }
-            });
-            toast.success("Facture transmise avec succès !");
-            loadData();
-        } catch (err) {
-            toast.error("Erreur lors de l'envoi de la facture");
-        } finally {
-            setUploading(prev => ({ ...prev, [invoiceId]: false }));
-        }
-    };
+    // Factures en attente de paiement (inclut désormais celles à transmettre et soumises)
+    const pendingPayment = useMemo(() => invoices.filter(inv =>
+        inv.status === 'to_submit' ||
+        inv.status === 'submitted' ||
+        inv.status === 'pending' ||
+        inv.status === 'verified' ||
+        inv.status === 'rejected'
+    ), [invoices]);
 
-    // Factures à transmettre : status "to_submit" (créées auto après mission terminée)
-    const toTransmit = useMemo(() => invoices.filter(inv => inv.status === 'to_submit'), [invoices]);
-    // Factures soumises en attente de vérification admin
-    const submitted = useMemo(() => invoices.filter(inv => inv.status === 'submitted'), [invoices]);
-    // Factures en attente de paiement (vérifiées par admin)
-    const pendingPayment = useMemo(() => invoices.filter(inv => inv.status === 'pending' || inv.status === 'verified'), [invoices]);
     // Factures payées
     const paidInvoices = useMemo(() => invoices.filter(inv => inv.status === 'paid'), [invoices]);
-    // Factures rejetées
-    const rejectedInvoices = useMemo(() => invoices.filter(inv => inv.status === 'rejected'), [invoices]);
 
     const tabCount = (tab) => {
-        if (tab === 'to_transmit') return toTransmit.length + submitted.length;
         if (tab === 'pending') return pendingPayment.length;
         if (tab === 'paid') return paidInvoices.length;
         return 0;
@@ -100,9 +70,9 @@ export default function InvoicesPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                 <div className="space-y-2">
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight font-display">Mes Factures</h1>
-                    <p className="text-slate-500 font-medium">Gérez vos paiements et transmettez vos factures.</p>
+                    <p className="text-slate-500 font-medium">Gérez vos paiements et consultez vos documents de mission.</p>
                 </div>
-                
+
                 <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center gap-6 group hover:shadow-xl transition-all">
                     <div className="h-14 w-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-200 group-hover:scale-110 transition-transform">
                         <TrendingUp className="h-7 w-7" />
@@ -116,7 +86,6 @@ export default function InvoicesPage() {
 
             <div className="flex flex-wrap items-center gap-2 p-2 bg-white border border-slate-100 rounded-[2rem] shadow-sm">
                 {[
-                    { id: 'to_transmit', label: 'À transmettre', icon: Send, color: 'text-violet-600' },
                     { id: 'pending', label: 'En attente de paiement', icon: Clock4, color: 'text-orange-500' },
                     { id: 'paid', label: 'Payées', icon: CheckCircle2, color: 'text-emerald-500' }
                 ].map((tab) => {
@@ -126,9 +95,9 @@ export default function InvoicesPage() {
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
                             className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-sm transition-all ${
-                                activeTab === tab.id 
-                                ? 'bg-violet-600 text-white shadow-xl shadow-violet-600/20' 
-                                : 'text-slate-500 hover:bg-slate-50'
+                                activeTab === tab.id
+                                    ? 'bg-violet-600 text-white shadow-xl shadow-violet-600/20'
+                                    : 'text-slate-500 hover:bg-slate-50'
                             }`}
                         >
                             <tab.icon className={`h-5 w-5 ${activeTab === tab.id ? 'text-white' : tab.color}`} />
@@ -144,49 +113,11 @@ export default function InvoicesPage() {
             </div>
 
             <div className="grid gap-6">
-                {activeTab === 'to_transmit' && (
-                    <div className="space-y-4">
-                        {toTransmit.length === 0 && submitted.length === 0 ? (
-                            <EmptyState icon={FileText} text="Aucune facture à transmettre pour le moment." subtext="Les factures apparaissent automatiquement lorsqu'une mission est marquée terminée." />
-                        ) : (
-                            <>
-                                {toTransmit.map((inv) => (
-                                    <InvoiceCard 
-                                        key={inv.id} 
-                                        item={inv} 
-                                        type="to_transmit" 
-                                        onUpload={handleUploadInvoice}
-                                        uploading={uploading[inv.id]}
-                                    />
-                                ))}
-                                {submitted.map((inv) => (
-                                    <InvoiceCard 
-                                        key={inv.id} 
-                                        item={inv} 
-                                        type="submitted" 
-                                        onUpload={handleUploadInvoice}
-                                        uploading={uploading[inv.id]}
-                                    />
-                                ))}
-                                {rejectedInvoices.map((inv) => (
-                                    <InvoiceCard 
-                                        key={inv.id} 
-                                        item={inv} 
-                                        type="rejected" 
-                                        onUpload={handleUploadInvoice}
-                                        uploading={uploading[inv.id]}
-                                    />
-                                ))}
-                            </>
-                        )}
-                    </div>
-                )}
-
                 {activeTab === 'pending' && (
                     <div className="space-y-4">
                         {pendingPayment.length > 0 ? (
                             pendingPayment.map((inv) => (
-                                <InvoiceCard key={inv.id} item={inv} type="pending" />
+                                <InvoiceCard key={inv.id} item={inv} />
                             ))
                         ) : (
                             <EmptyState icon={Clock4} text="Aucune facture en attente de paiement." />
@@ -198,7 +129,7 @@ export default function InvoicesPage() {
                     <div className="space-y-4">
                         {paidInvoices.length > 0 ? (
                             paidInvoices.map((inv) => (
-                                <InvoiceCard key={inv.id} item={inv} type="paid" />
+                                <InvoiceCard key={inv.id} item={inv} />
                             ))
                         ) : (
                             <EmptyState icon={CheckCircle2} text="Aucune facture payée pour le moment." />
@@ -210,10 +141,8 @@ export default function InvoicesPage() {
     );
 }
 
-function InvoiceCard({ item, type, onUpload, uploading }) {
-    const [dragOver, setDragOver] = useState(false);
-    const fileInputRef = useRef(null);
-
+function InvoiceCard({ item }) {
+    const { getAuthHeader } = useAuth();
     const hotelName = item.hotel_name || "Hôtel Partenaire";
     const title = item.shift_title || "Mission";
     const dates = item.dates || [];
@@ -233,52 +162,78 @@ function InvoiceCard({ item, type, onUpload, uploading }) {
         amount = item.hourly_rate * duration * nbDays;
     }
 
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setDragOver(false);
-        const file = e.dataTransfer.files[0];
-        if (file && onUpload) onUpload(item.id, file);
+    const getStatusConfig = (status) => {
+        switch (status) {
+            case 'paid': return { label: "Payée", color: "bg-emerald-100 text-emerald-700" };
+            case 'rejected': return { label: "Rejetée", color: "bg-red-100 text-red-700" };
+            case 'submitted': return { label: "Vérification", color: "bg-violet-100 text-violet-700" };
+            case 'verified':
+            case 'pending': return { label: "Validée", color: "bg-orange-100 text-orange-700" };
+            default: return { label: "En attente", color: "bg-slate-100 text-slate-700" };
+        }
     };
 
-    const handleFileSelect = (e) => {
-        const file = e.target.files[0];
-        if (file && onUpload) onUpload(item.id, file);
+    const statusCfg = getStatusConfig(item.status);
+
+    const handleDownloadReport = async () => {
+        try {
+            const response = await fetch(
+                `${process.env.REACT_APP_BACKEND_URL}/api/invoices/${item.id}/mission-report`,
+                { headers: getAuthHeader() }
+            );
+            if (!response.ok) throw new Error('Erreur lors du téléchargement');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `releve_mission_${item.id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Relevé de mission téléchargé');
+        } catch (err) {
+            toast.error('Erreur lors du téléchargement');
+        }
     };
 
-    const statusBadge = {
-        to_submit: { label: "À transmettre", color: "bg-violet-600/10 text-violet-600" },
-        submitted: { label: "En cours de vérification", color: "bg-violet-100 text-violet-700" },
-        verified: { label: "Vérifiée", color: "bg-emerald-100 text-emerald-700" },
-        pending: { label: "En attente de paiement", color: "bg-orange-100 text-orange-700" },
-        paid: { label: "Payée", color: "bg-emerald-100 text-emerald-700" },
-        rejected: { label: "Rejetée", color: "bg-red-100 text-red-700" }
-    }[type] || { label: type, color: "bg-slate-100 text-slate-700" };
+    const handleDownloadInvoice = async () => {
+        try {
+            const response = await fetch(
+                `${process.env.REACT_APP_BACKEND_URL}/api/invoices/${item.id}/invoice-pdf`,
+                { headers: getAuthHeader() }
+            );
+            if (!response.ok) throw new Error('Erreur lors du téléchargement');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `facture_${item.id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            toast.success('Facture téléchargée');
+        } catch (err) {
+            toast.error('Erreur lors du téléchargement');
+        }
+    };
 
     return (
-        <div className={`bg-white p-8 rounded-[2.5rem] border shadow-sm transition-all ${
-            type === 'rejected' ? 'border-red-200 bg-red-50' :
-            dragOver ? 'border-violet-600 border-2 shadow-xl shadow-violet-600/10' : 'border-slate-100 hover:shadow-xl hover:border-violet-600/20'
-        }`}
-            onDragOver={type === 'to_submit' ? (e) => { e.preventDefault(); setDragOver(true); } : undefined}
-            onDragLeave={type === 'to_submit' ? () => setDragOver(false) : undefined}
-            onDrop={type === 'to_submit' ? handleDrop : undefined}
-        >
+        <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-violet-600/20 transition-all">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                 <div className="flex items-center gap-8 flex-1">
                     <div className={`h-20 w-20 rounded-3xl flex items-center justify-center shadow-inner transition-all ${
-                        type === 'paid' ? 'bg-emerald-50 text-emerald-500' : 
-                        type === 'pending' || type === 'verified' ? 'bg-orange-50 text-orange-500' : 
-                        type === 'rejected' ? 'bg-red-100 text-red-500' :
-                        type === 'submitted' ? 'bg-violet-50 text-violet-500' :
-                        'bg-violet-600/5 text-violet-600'
+                        item.status === 'paid' ? 'bg-emerald-50 text-emerald-500' :
+                            'bg-violet-600/5 text-violet-600'
                     }`}>
                         <FileText className="h-10 w-10" />
                     </div>
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-3">
                             <h4 className="font-black text-slate-900 text-xl tracking-tight">{title}</h4>
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusBadge.color}`}>
-                                {statusBadge.label}
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusCfg.color}`}>
+                                {statusCfg.label}
                             </span>
                         </div>
                         <p className="text-violet-600 font-bold text-sm">{hotelName}</p>
@@ -296,7 +251,7 @@ function InvoiceCard({ item, type, onUpload, uploading }) {
                                 </div>
                             )}
                         </div>
-                        {type === 'rejected' && item.rejection_reason && (
+                        {item.status === 'rejected' && item.rejection_reason && (
                             <div className="flex items-center gap-2 text-red-600 text-sm font-bold mt-1">
                                 <AlertCircle className="h-4 w-4" />
                                 Motif : {item.rejection_reason}
@@ -307,63 +262,28 @@ function InvoiceCard({ item, type, onUpload, uploading }) {
 
                 <div className="flex items-center justify-between lg:justify-end gap-12 border-t lg:border-t-0 pt-6 lg:pt-0 border-slate-50">
                     {amount > 0 && (
-                        <div className="text-right">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Montant TTC</p>
-                            <p className="text-3xl font-black text-violet-600 tracking-tighter">{amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</p>
+                        <div className="text-right min-w-[120px]">
+                            <p className="text-2xl font-black text-slate-900 tracking-tighter">{amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € HT</p>
                         </div>
                     )}
 
-                    {(type === 'to_submit' || type === 'rejected') && (
-                        <div className="flex flex-col items-center gap-2">
-                            <input ref={fileInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleFileSelect} />
-                            <button 
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
-                                className={`h-16 px-8 rounded-2xl flex items-center justify-center gap-2 font-bold transition-all shadow-xl ${
-                                    dragOver 
-                                    ? 'bg-violet-600 text-white scale-105 shadow-violet-600/30' 
-                                    : uploading 
-                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                                    : 'bg-violet-600 text-white hover:bg-violet-600-light shadow-violet-600/20'
-                                }`}
-                            >
-                                {uploading ? (
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                ) : (
-                                    <Upload className="h-5 w-5" />
-                                )}
-                                {type === 'rejected' ? 'Renvoyer' : 'Transmettre'}
-                            </button>
-                            <p className="text-[10px] text-slate-400 font-bold">ou glissez-déposez ici</p>
-                        </div>
-                    )}
-
-                    {type === 'submitted' && (
-                        <div className="flex items-center gap-3 px-6 py-4 bg-violet-50 rounded-2xl">
-                            <Clock className="h-5 w-5 text-violet-500" />
-                            <span className="text-violet-700 font-bold text-sm">En cours de vérification</span>
-                        </div>
-                    )}
-
-                    {(type === 'paid' || type === 'pending' || type === 'verified') && item.url && (
-                        <a 
-                            href={item.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="h-16 w-16 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-violet-600 transition-all shadow-xl shadow-slate-200 hover:shadow-violet-600/20"
+                    <div className="flex flex-col items-center gap-3">
+                        <button
+                            onClick={() => handleDownloadReport()}
+                            className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-sm hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20 flex items-center gap-2 min-w-[180px] justify-center"
                         >
-                            <Download className="h-7 w-7" />
-                        </a>
-                    )}
+                            <FileCheck className="h-4 w-4" />
+                            Relevé de mission
+                        </button>
+                        <button
+                            onClick={() => handleDownloadInvoice()}
+                            className="text-violet-600 font-bold text-sm hover:text-violet-800 transition-colors"
+                        >
+                            Facture
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            {/* Zone drag & drop visuelle */}
-            {type === 'to_submit' && dragOver && (
-                <div className="mt-6 border-2 border-dashed border-violet-600 rounded-2xl p-6 text-center text-violet-600 font-bold text-sm bg-violet-600/5 animate-pulse">
-                    Relâchez pour envoyer votre facture PDF
-                </div>
-            )}
         </div>
     );
 }

@@ -24,6 +24,7 @@ import cloudinary.uploader
 from bson import ObjectId
 import oci
 import io
+from pdf_generator import generate_mission_report_pdf, generate_invoice_pdf
 
 # -----------------------------
 # Setup / Env
@@ -748,16 +749,51 @@ async def update_app(app_id: str, payload: Dict[Any, Any], current_user: dict = 
     new_status = payload.get("status")
     await db.applications.update_one({"id": app_id}, {"$set": payload})
 
-    # Si la candidature est acceptée (confirmée), incrémenter le compteur de missions du worker
+    # Si la candidature est acceptée (confirmée)
     if new_status == ApplicationStatus.ACCEPTED:
+        # Incrémenter le compteur de missions du worker
         await db.users.update_one(
             {"id": app["worker_id"]},
             {"$inc": {"completed_missions": 1}}
         )
 
-    # Si la mission est marquée terminée, créer automatiquement la facture
+        # Mettre à jour le statut du shift à "filled" (pourvu)
+        await db.shifts.update_one(
+            {"id": app["shift_id"]},
+            {"$set": {"status": ShiftStatus.FILLED, "filled_at": DateUtils.to_iso(DateUtils.now())}}
+        )
+
+        # Rejeter automatiquement toutes les autres candidatures en attente pour ce shift
+        await db.applications.update_many(
+            {
+                "shift_id": app["shift_id"],
+                "id": {"$ne": app_id},
+                "status": {"$in": [ApplicationStatus.PENDING, ApplicationStatus.REVIEWED]}
+            },
+            {"$set": {"status": ApplicationStatus.REJECTED, "rejection_reason": "Mission pourvue"}}
+        )
+
+    # Si la mission est marquée terminée
     if new_status == ApplicationStatus.COMPLETED:
+        # Mettre à jour le statut du shift à "completed"
+        await db.shifts.update_one(
+            {"id": app["shift_id"]},
+            {"$set": {"status": ShiftStatus.COMPLETED, "completed_at": DateUtils.to_iso(DateUtils.now())}}
+        )
+
+        # Créer automatiquement la facture
         await create_invoice_for_completed_shift(app["shift_id"], app["worker_id"])
+
+        # Rejeter les candidatures qui seraient encore en attente (sécurité)
+        await db.applications.update_many(
+            {
+                "shift_id": app["shift_id"],
+                "id": {"$ne": app_id},
+                "status": {"$in": [ApplicationStatus.PENDING, ApplicationStatus.REVIEWED]}
+            },
+            {"$set": {"status": ApplicationStatus.REJECTED, "rejection_reason": "Mission terminée"}}
+        )
+
     return {"status": "success"}
 
 # Worker earnings
@@ -987,6 +1023,157 @@ async def upload_invoice_file(invoice_id: str, file: UploadFile = File(...), inv
     except Exception as e:
         logger.error(f"Failed to upload invoice file: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'envoi de la facture")
+
+@api_router.get("/invoices/{invoice_id}/mission-report")
+async def download_mission_report(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Génère et télécharge le relevé de mission en PDF"""
+    invoice = await db.invoices.find_one({"id": invoice_id})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Facture non trouvée")
+
+    # Vérifier l'accès
+    if current_user.get("role") != "admin" and invoice.get("worker_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    # Récupérer les données du worker
+    worker = await db.users.find_one({"id": invoice.get("worker_id")})
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker non trouvé")
+    worker = clean_mongo_doc(worker)
+
+    # Récupérer les données de la mission
+    shift = await db.shifts.find_one({"id": invoice.get("shift_id")})
+    if not shift:
+        raise HTTPException(status_code=404, detail="Mission non trouvée")
+    shift = clean_mongo_doc(shift)
+
+    # Récupérer les données de l'hôtel
+    hotel = await db.users.find_one({"id": shift.get("hotel_id")})
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hôtel non trouvé")
+    hotel = clean_mongo_doc(hotel)
+
+    # Préparer les données pour la génération du PDF
+    mission_data = {
+        "id": shift.get("id"),
+        "dates": shift.get("dates", []),
+        "start_time": shift.get("start_time"),
+        "end_time": shift.get("end_time"),
+        "hourly_rate": shift.get("hourly_rate"),
+        "service_type": shift.get("service_type")
+    }
+
+    worker_data = {
+        "first_name": worker.get("first_name"),
+        "last_name": worker.get("last_name"),
+        "address": worker.get("address"),
+        "postal_code": worker.get("postal_code"),
+        "city": worker.get("city"),
+        "phone": worker.get("phone"),
+        "email": worker.get("email"),
+        "siret": worker.get("siret"),
+        "tva": worker.get("tva", "")
+    }
+
+    hotel_data = {
+        "hotel_name": hotel.get("hotel_name"),
+        "hotel_address": hotel.get("hotel_address"),
+        "postal_code": hotel.get("postal_code"),
+        "city": hotel.get("city"),
+        "phone": hotel.get("phone"),
+        "email": hotel.get("email"),
+        "siret": hotel.get("siret"),
+        "tva": hotel.get("tva", "")
+    }
+
+    try:
+        pdf_bytes = generate_mission_report_pdf(mission_data, worker_data, hotel_data)
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=releve_mission_{shift.get('id')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"Erreur génération relevé de mission: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF")
+
+@api_router.get("/invoices/{invoice_id}/invoice-pdf")
+async def download_invoice_pdf(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Génère et télécharge la facture en PDF"""
+    invoice = await db.invoices.find_one({"id": invoice_id})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Facture non trouvée")
+
+    # Vérifier l'accès
+    if current_user.get("role") != "admin" and invoice.get("worker_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    # Récupérer les données du worker
+    worker = await db.users.find_one({"id": invoice.get("worker_id")})
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker non trouvé")
+    worker = clean_mongo_doc(worker)
+
+    # Récupérer les données de la mission
+    shift = await db.shifts.find_one({"id": invoice.get("shift_id")})
+    if not shift:
+        raise HTTPException(status_code=404, detail="Mission non trouvée")
+    shift = clean_mongo_doc(shift)
+
+    # Récupérer les données de l'hôtel
+    hotel = await db.users.find_one({"id": shift.get("hotel_id")})
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hôtel non trouvé")
+    hotel = clean_mongo_doc(hotel)
+
+    # Préparer les données pour la génération du PDF
+    invoice_data = {
+        "invoice_number": invoice.get("id"),
+        "created_at": invoice.get("created_at")
+    }
+
+    mission_data = {
+        "id": shift.get("id"),
+        "dates": shift.get("dates", []),
+        "start_time": shift.get("start_time"),
+        "end_time": shift.get("end_time"),
+        "hourly_rate": shift.get("hourly_rate"),
+        "service_type": shift.get("service_type")
+    }
+
+    worker_data = {
+        "first_name": worker.get("first_name"),
+        "last_name": worker.get("last_name"),
+        "address": worker.get("address"),
+        "postal_code": worker.get("postal_code"),
+        "city": worker.get("city"),
+        "phone": worker.get("phone"),
+        "email": worker.get("email"),
+        "siret": worker.get("siret"),
+        "tva": worker.get("tva", "")
+    }
+
+    hotel_data = {
+        "hotel_name": hotel.get("hotel_name"),
+        "hotel_address": hotel.get("hotel_address"),
+        "postal_code": hotel.get("postal_code"),
+        "city": hotel.get("city"),
+        "phone": hotel.get("phone"),
+        "email": hotel.get("email"),
+        "siret": hotel.get("siret"),
+        "tva": hotel.get("tva", "")
+    }
+
+    try:
+        pdf_bytes = generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data)
+        return StreamingResponse(
+            io.BytesIO(pdf_bytes),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=facture_{invoice.get('id')}.pdf"}
+        )
+    except Exception as e:
+        logger.error(f"Erreur génération facture: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF")
 
 @api_router.get("/admin/invoices")
 async def admin_get_invoices(current_user: dict = Depends(require_admin)):

@@ -125,8 +125,9 @@ export default function MissionsPage() {
     const completedMissions = useMemo(() => {
         return myApplications.filter(app => {
             const shift = app.shift_details;
-            // On ne garde que si le worker a été accepté (pourvu)
-            if (app.status !== "accepted") return false;
+            // On accepte si le worker a été accepté (pourvu) OU si le statut de la candidature est explicitement 'completed'
+            const isAccepted = app.status === "accepted" || app.status === "completed";
+            if (!isAccepted) return false;
             return shift && (shift.status === "completed" || shift.status === "cancelled");
         });
     }, [myApplications]);
@@ -347,6 +348,7 @@ function MissionItem({ mission, type, onClick }) {
     if (isCancelled) config = statusConfig.cancelled;
     else if (isCompleted) config = statusConfig.completed;
     else if (mission.status === 'accepted') config = statusConfig.accepted;
+    else if (mission.status === 'completed') config = statusConfig.completed;
 
     return (
         <div

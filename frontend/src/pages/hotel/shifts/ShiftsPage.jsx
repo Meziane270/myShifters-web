@@ -19,7 +19,6 @@ export default function ShiftsPage() {
     const [shifts, setShifts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
-    const [statusFilter, setStatusFilter] = useState("all");
     const [serviceFilter, setServiceFilter] = useState("all");
     const [activeTab, setActiveTab] = useState("upcoming"); // "upcoming", "filled-completed", "cancelled"
 
@@ -38,10 +37,10 @@ export default function ShiftsPage() {
 
     const fetchShifts = useCallback(async () => {
         try {
-            const response = await axios.get(`${API}/shifts/hotel`, {
+            const response = await axios.get(`${API}/hotel/shifts`, {
                 headers: getAuthHeader()
             });
-            setShifts(response.data);
+            setShifts(response.data || []);
         } catch {
             toast.error("Erreur lors du chargement des missions");
         } finally {
@@ -92,7 +91,7 @@ export default function ShiftsPage() {
 
         return {
             upcoming: filtered.filter(s => s.status === "open"),
-            filledCompleted: filtered.filter(s => s.status === "filled" || s.status === "completed"),
+            "filled-completed": filtered.filter(s => s.status === "filled" || s.status === "completed"),
             cancelled: filtered.filter(s => s.status === "cancelled"),
         };
     }, [sortedShifts, serviceFilter]);
@@ -148,7 +147,7 @@ export default function ShiftsPage() {
                         >
                             <div className="flex items-center gap-2">
                                 <CheckCircle2 className="h-4 w-4" />
-                                Pourvues & Terminées ({sections.filledCompleted.length})
+                                Pourvues & Terminées ({sections["filled-completed"].length})
                             </div>
                         </button>
                         <button
