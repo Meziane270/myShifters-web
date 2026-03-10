@@ -9,7 +9,9 @@ import {
     Clock4,
     TrendingUp,
     AlertCircle,
-    FileCheck
+    FileCheck,
+    Eye,
+    X
 } from "lucide-react";
 import { useWorkerData } from "../../../hooks/useWorkerData";
 import { useAuth } from "../../../context/AuthContext";
@@ -20,6 +22,7 @@ export default function InvoicesPage() {
     const [invoices, setInvoices] = useState([]);
     const [earnings, setEarnings] = useState({ total: 0, paid: 0, pending: 0 });
     const [activeTab, setActiveTab] = useState("pending");
+    const [previewData, setPreviewData] = useState(null); // { url, title }
 
     const loadData = useCallback(async () => {
         try {
@@ -117,7 +120,7 @@ export default function InvoicesPage() {
                     <div className="space-y-4">
                         {pendingPayment.length > 0 ? (
                             pendingPayment.map((inv) => (
-                                <InvoiceCard key={inv.id} item={inv} />
+                                <InvoiceCard key={inv.id} item={inv} onPreview={(url, title) => setPreviewData({ url, title })} />
                             ))
                         ) : (
                             <EmptyState icon={Clock4} text="Aucune facture en attente de paiement." />
@@ -129,7 +132,7 @@ export default function InvoicesPage() {
                     <div className="space-y-4">
                         {paidInvoices.length > 0 ? (
                             paidInvoices.map((inv) => (
-                                <InvoiceCard key={inv.id} item={inv} />
+                                <InvoiceCard key={inv.id} item={inv} onPreview={(url, title) => setPreviewData({ url, title })} />
                             ))
                         ) : (
                             <EmptyState icon={CheckCircle2} text="Aucune facture payée pour le moment." />
@@ -137,11 +140,50 @@ export default function InvoicesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de prévisualisation */}
+            {previewData && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="relative w-full max-w-5xl h-[90vh] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-white">
+                            <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-xl bg-violet-600/10 text-violet-600 flex items-center justify-center">
+                                    <FileText className="h-5 w-5" />
+                                </div>
+                                <h3 className="font-bold text-slate-900">{previewData.title}</h3>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <a
+                                    href={previewData.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-3 hover:bg-slate-50 rounded-xl text-slate-400 hover:text-violet-600 transition-all"
+                                >
+                                    <Download className="h-6 w-6" />
+                                </a>
+                                <button
+                                    onClick={() => setPreviewData(null)}
+                                    className="p-3 hover:bg-red-50 rounded-xl text-slate-400 hover:text-red-500 transition-all"
+                                >
+                                    <X className="h-6 w-6" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex-1 bg-slate-50 relative flex items-center justify-center overflow-hidden p-4 md:p-8">
+                            <iframe
+                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewData.url)}&embedded=true`}
+                                className="w-full h-full rounded-[2rem] shadow-xl bg-white border border-slate-100"
+                                title="PDF Preview"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
 
-function InvoiceCard({ item }) {
+function InvoiceCard({ item, onPreview }) {
     const { getAuthHeader } = useAuth();
     const hotelName = item.hotel_name || "Hôtel Partenaire";
     const title = item.shift_title || "Mission";
@@ -182,10 +224,12 @@ function InvoiceCard({ item }) {
                 { headers: getAuthHeader() }
             );
             if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            const data = await response.json();
+            if (data.url) {
+                onPreview(data.url, `Relevé de mission - ${title}`);
+            } else {
+                throw new Error('URL non trouvée');
+            }
         } catch (err) {
             toast.error('Erreur lors de la prévisualisation');
         }
@@ -198,10 +242,12 @@ function InvoiceCard({ item }) {
                 { headers: getAuthHeader() }
             );
             if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+            const data = await response.json();
+            if (data.url) {
+                onPreview(data.url, `Facture - ${title}`);
+            } else {
+                throw new Error('URL non trouvée');
+            }
         } catch (err) {
             toast.error('Erreur lors de la prévisualisation');
         }

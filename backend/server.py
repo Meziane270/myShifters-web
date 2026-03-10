@@ -1089,15 +1089,12 @@ async def download_mission_report(invoice_id: str, current_user: dict = Depends(
 
     try:
         pdf_bytes = generate_mission_report_pdf(mission_data, worker_data, hotel_data)
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"inline; filename=releve_mission_{shift.get('id')}.pdf"
-            }
-        )
+        # Upload vers Oracle Cloud
+        object_name = f"mission_reports/{invoice_id}.pdf"
+        url = upload_to_oci(pdf_bytes, object_name, "application/pdf")
+        return {"status": "success", "url": url}
     except Exception as e:
-        logger.error(f"Erreur génération relevé de mission: {e}")
+        logger.error(f"Erreur génération/upload relevé de mission: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF")
 
 @api_router.get("/invoices/{invoice_id}/invoice-pdf")
@@ -1169,15 +1166,12 @@ async def download_invoice_pdf(invoice_id: str, current_user: dict = Depends(get
 
     try:
         pdf_bytes = generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data)
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"inline; filename=facture_{invoice.get('id')}.pdf"
-            }
-        )
+        # Upload vers Oracle Cloud
+        object_name = f"invoices/{invoice_id}.pdf"
+        url = upload_to_oci(pdf_bytes, object_name, "application/pdf")
+        return {"status": "success", "url": url}
     except Exception as e:
-        logger.error(f"Erreur génération facture: {e}")
+        logger.error(f"Erreur génération/upload facture: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de la génération du PDF")
 
 @api_router.get("/admin/invoices")
