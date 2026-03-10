@@ -171,7 +171,7 @@ export default function InvoicesPage() {
                         </div>
                         <div className="flex-1 bg-slate-50 relative flex items-center justify-center overflow-hidden p-4 md:p-8">
                             <iframe
-                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewData.url)}&embedded=true`}
+                                src={previewData.url}
                                 className="w-full h-full rounded-[2rem] shadow-xl bg-white border border-slate-100"
                                 title="PDF Preview"
                             />
@@ -224,12 +224,9 @@ function InvoiceCard({ item, onPreview }) {
                 { headers: getAuthHeader() }
             );
             if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
-            const data = await response.json();
-            if (data.url) {
-                onPreview(data.url, `Relevé de mission - ${title}`);
-            } else {
-                throw new Error('URL non trouvée');
-            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            onPreview(url, `Relevé de mission - ${title}`);
         } catch (err) {
             toast.error('Erreur lors de la prévisualisation');
         }
@@ -242,12 +239,9 @@ function InvoiceCard({ item, onPreview }) {
                 { headers: getAuthHeader() }
             );
             if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
-            const data = await response.json();
-            if (data.url) {
-                onPreview(data.url, `Facture - ${title}`);
-            } else {
-                throw new Error('URL non trouvée');
-            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            onPreview(url, `Facture - ${title}`);
         } catch (err) {
             toast.error('Erreur lors de la prévisualisation');
         }
