@@ -4,7 +4,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { toast } from "sonner";
 import {
     Star, MessageSquare, Calendar, Send, Award,
-    CheckCircle2, X, Clock, MapPin, Euro, User
+    CheckCircle2, X, Clock, MapPin, Euro, User, History
 } from "lucide-react";
 import { Button } from "../../../components/ui/button";
 
@@ -60,25 +60,50 @@ export default function HotelRatingsPage() {
     const { getAuthHeader } = useAuth();
     const [loading, setLoading] = useState(true);
     const [missions, setMissions] = useState([]);
+    const [evaluatedMissions, setEvaluatedMissions] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [selected, setSelected] = useState(null);
     const [form, setForm] = useState({ rating: 5, comment: "", landingPage: false });
     const [submitting, setSubmitting] = useState(false);
+    const [activeTab, setActiveTab] = useState("to-evaluate"); // "to-evaluate" ou "evaluated"
 
     const fetchMissions = useCallback(async () => {
         setLoading(true);
         try {
+            // Récupérer les missions complétées
             const res = await axios.get(`${API}/shifts/hotel?status=completed`, {
                 headers: getAuthHeader()
             });
-            // Trier par date de fin décroissante (plus récent en premier)
-            const sorted = (res.data || []).sort((a, b) => {
+
+            // Récupérer les avis déjà laissés par l'hôtel
+            const ratingsRes = await axios.get(`${API}/hotel/my-ratings`, {
+                headers: getAuthHeader()
+            });
+            const ratedShiftIds = new Set(ratingsRes.data.map(r => r.shift_id));
+
+            // Séparer les missions à évaluer et évaluées
+            const toEvaluate = [];
+            const evaluated = [];
+
+            (res.data || []).forEach(mission => {
+                if (ratedShiftIds.has(mission.id)) {
+                    evaluated.push(mission);
+                } else {
+                    toEvaluate.push(mission);
+                }
+            });
+
+            // Trier par date de fin décroissante
+            const sortByDate = (a, b) => {
                 const dateA = Array.isArray(a.dates) ? a.dates[a.dates.length - 1] : a.date;
                 const dateB = Array.isArray(b.dates) ? b.dates[b.dates.length - 1] : b.date;
                 return new Date(dateB) - new Date(dateA);
-            });
-            setMissions(sorted);
-        } catch {
+            };
+
+            setMissions(toEvaluate.sort(sortByDate));
+            setEvaluatedMissions(evaluated.sort(sortByDate));
+        } catch (e) {
+            console.error(e);
             toast.error("Erreur lors du chargement des missions");
         } finally {
             setLoading(false);
@@ -133,6 +158,75 @@ export default function HotelRatingsPage() {
         return fmtDate(mission.date);
     };
 
+    const MissionCard = ({ mission, isEvaluated = false }) => (
+        <div className="bg-card rounded-xl border border-border hover:border-violet-600/30 hover:shadow-md transition-all p-5">
+            <div className="flex items-start gap-4">
+                {/* Avatar worker */}
+                <WorkerAvatar
+                    src={mission.worker_avatar}
+                    name={mission.worker_name}
+                />
+
+                {/* Infos */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                        <div>
+                            <h3 className="font-bold text-foreground text-base leading-tight">
+                                {mission.worker_name || (
+                                    <span className="flex items-center gap-1.5 text-foreground/50">
+                                        <User className="h-4 w-4" />
+                                        Extra Shifter
+                                    </span>
+                                )}
+                            </h3>
+                            {mission.worker_avg_rating && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                                    <span className="text-xs font-bold text-amber-700">{mission.worker_avg_rating}</span>
+                                    <span className="text-xs text-foreground/40">note moyenne</span>
+                                </div>
+                            )}
+                        </div>
+                        {!isEvaluated && (
+                            <Button
+                                size="sm"
+                                className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5 shrink-0"
+                                onClick={() => openModal(mission)}
+                            >
+                                <Star className="h-3.5 w-3.5" />
+                                Évaluer
+                            </Button>
+                        )}
+                    </div>
+
+                    {/* Détails mission */}
+                    <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2 text-xs text-foreground/60">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-foreground/80 truncate">{mission.title}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-medium">
+                                {SERVICE_LABELS[mission.service_type] || mission.service_type}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Calendar className="h-3 w-3 text-violet-500" />
+                            {getMissionDates(mission)}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Clock className="h-3 w-3 text-violet-500" />
+                            {mission.start_time} – {mission.end_time}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Euro className="h-3 w-3 text-violet-500" />
+                            {mission.hourly_rate}€/h
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div className="space-y-8 pb-20">
             {/* Header */}
@@ -145,96 +239,69 @@ export default function HotelRatingsPage() {
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
-                {/* Liste des missions à évaluer */}
+                {/* Liste des missions */}
                 <div className="lg:col-span-2 space-y-4">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="h-2 w-2 bg-violet-600 rounded-full" />
-                        <h2 className="text-sm font-bold text-foreground/60 uppercase tracking-widest">
-                            Extras à évaluer ({missions.length})
-                        </h2>
+                    {/* Tabs */}
+                    <div className="flex gap-2 border-b border-border">
+                        <button
+                            onClick={() => setActiveTab("to-evaluate")}
+                            className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 ${
+                                activeTab === "to-evaluate"
+                                    ? "border-violet-600 text-violet-600"
+                                    : "border-transparent text-foreground/60 hover:text-foreground"
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Star className="h-4 w-4" />
+                                À évaluer ({missions.length})
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("evaluated")}
+                            className={`px-4 py-3 font-semibold text-sm transition-colors border-b-2 ${
+                                activeTab === "evaluated"
+                                    ? "border-violet-600 text-violet-600"
+                                    : "border-transparent text-foreground/60 hover:text-foreground"
+                            }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <History className="h-4 w-4" />
+                                Historique ({evaluatedMissions.length})
+                            </div>
+                        </button>
                     </div>
 
+                    {/* Contenu des tabs */}
                     {loading ? (
                         <div className="flex items-center justify-center h-48">
                             <div className="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin" />
                         </div>
-                    ) : missions.length === 0 ? (
-                        <div className="bg-card rounded-xl border-2 border-dashed border-border p-16 text-center">
-                            <MessageSquare className="h-12 w-12 text-foreground/20 mx-auto mb-4" />
-                            <p className="text-foreground/50 font-medium">Aucune mission terminée à évaluer.</p>
-                        </div>
+                    ) : activeTab === "to-evaluate" ? (
+                        missions.length === 0 ? (
+                            <div className="bg-card rounded-xl border-2 border-dashed border-border p-16 text-center">
+                                <MessageSquare className="h-12 w-12 text-foreground/20 mx-auto mb-4" />
+                                <p className="text-foreground/50 font-medium">Aucune mission terminée à évaluer.</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {missions.map((mission) => (
+                                    <MissionCard key={mission.id} mission={mission} isEvaluated={false} />
+                                ))}
+                            </div>
+                        )
                     ) : (
-                        <div className="grid gap-4">
-                            {missions.map((mission) => (
-                                <div
-                                    key={mission.id}
-                                    className="bg-card rounded-xl border border-border hover:border-violet-600/30 hover:shadow-md transition-all p-5"
-                                >
-                                    <div className="flex items-start gap-4">
-                                        {/* Avatar worker */}
-                                        <WorkerAvatar
-                                            src={mission.worker_avatar}
-                                            name={mission.worker_name}
-                                        />
-
-                                        {/* Infos */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div>
-                                                    <h3 className="font-bold text-foreground text-base leading-tight">
-                                                        {mission.worker_name || (
-                                                            <span className="flex items-center gap-1.5 text-foreground/50">
-                                                                <User className="h-4 w-4" />
-                                                                Extra Shifter
-                                                            </span>
-                                                        )}
-                                                    </h3>
-                                                    {mission.worker_avg_rating && (
-                                                        <div className="flex items-center gap-1 mt-0.5">
-                                                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                                                            <span className="text-xs font-bold text-amber-700">{mission.worker_avg_rating}</span>
-                                                            <span className="text-xs text-foreground/40">note moyenne</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <Button
-                                                    size="sm"
-                                                    className="bg-violet-600 hover:bg-violet-700 text-white gap-1.5 shrink-0"
-                                                    onClick={() => openModal(mission)}
-                                                >
-                                                    <Star className="h-3.5 w-3.5" />
-                                                    Évaluer
-                                                </Button>
-                                            </div>
-
-                                            {/* Détails mission */}
-                                            <div className="mt-3 pt-3 border-t border-border grid grid-cols-2 gap-2 text-xs text-foreground/60">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="font-semibold text-foreground/80 truncate">{mission.title}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-medium">
-                                                        {SERVICE_LABELS[mission.service_type] || mission.service_type}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Calendar className="h-3 w-3 text-violet-500" />
-                                                    {getMissionDates(mission)}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Clock className="h-3 w-3 text-violet-500" />
-                                                    {mission.start_time} – {mission.end_time}
-                                                </div>
-                                                <div className="flex items-center gap-1.5">
-                                                    <Euro className="h-3 w-3 text-violet-500" />
-                                                    {mission.hourly_rate}€/h
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        evaluatedMissions.length === 0 ? (
+                            <div className="bg-card rounded-xl border-2 border-dashed border-border p-16 text-center">
+                                <History className="h-12 w-12 text-foreground/20 mx-auto mb-4" />
+                                <p className="text-foreground/50 font-medium">Aucun avis laissé pour le moment.</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {evaluatedMissions.map((mission) => (
+                                    <MissionCard key={mission.id} mission={mission} isEvaluated={true} />
+                                ))}
+                            </div>
+                        )
                     )}
                 </div>
 
@@ -255,7 +322,7 @@ export default function HotelRatingsPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                                <span className="text-xs font-medium">Visibilité sur la Landing Page possible</span>
+                                <span className="text-xs font-medium">Visibilité sur la Landing Page si coché</span>
                             </div>
                             <div className="flex items-center gap-3">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />

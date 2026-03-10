@@ -80,10 +80,7 @@ export default function PersonalInfoForm({ profile, onSave, saving }) {
 
         // On exclut avatar_url, phone (non modifiable) et email de l'envoi
         const { avatar_url, phone, email, ...updateData } = formData;
-        // Ne pas envoyer date_of_birth vide (garder la valeur existante)
-        if (!updateData.date_of_birth) {
-            delete updateData.date_of_birth;
-        }
+
         if (onSave) {
             await onSave(updateData);
         }

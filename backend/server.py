@@ -541,20 +541,6 @@ async def update_worker_business(payload: Dict[Any, Any], current_user: dict = D
 async def create_shift(payload: ShiftCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != UserRole.HOTEL: raise HTTPException(status_code=403)
 
-    # Validation : interdire les dates dans le passé (comparaison avec la date du jour UTC)
-    today = DateUtils.now().date()
-    for date_str in payload.dates:
-        try:
-            # Accepte YYYY-MM-DD ou ISO avec T
-            d = datetime.fromisoformat(date_str.replace("Z", "+00:00")).date() if "T" in date_str else datetime.strptime(date_str, "%Y-%m-%d").date()
-            if d < today:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"La date {date_str} est dans le passé. Vous ne pouvez créer des missions qu'à partir d'aujourd'hui."
-                )
-        except ValueError:
-            raise HTTPException(status_code=400, detail=f"Format de date invalide : {date_str}")
-
     # Calcul de la commission de 15% pour l'hôtel
     data = payload.model_dump()
     data["hotel_hourly_rate"] = round(payload.hourly_rate * 1.15, 2)
@@ -761,6 +747,14 @@ async def update_app(app_id: str, payload: Dict[Any, Any], current_user: dict = 
         raise HTTPException(status_code=403, detail="Non autorisé")
     new_status = payload.get("status")
     await db.applications.update_one({"id": app_id}, {"$set": payload})
+
+    # Si la candidature est acceptée (confirmée), incrémenter le compteur de missions du worker
+    if new_status == ApplicationStatus.ACCEPTED:
+        await db.users.update_one(
+            {"id": app["worker_id"]},
+            {"$inc": {"completed_missions": 1}}
+        )
+
     # Si la mission est marquée terminée, créer automatiquement la facture
     if new_status == ApplicationStatus.COMPLETED:
         await create_invoice_for_completed_shift(app["shift_id"], app["worker_id"])
@@ -1834,79 +1828,6 @@ async def admin_update_review(review_id: str, payload: Dict[Any, Any], current_u
         await db.ratings.update_one({"id": review_id}, {"$set": update})
     return {"status": "success"}
 
-async def auto_complete_shifts():
-    """
-    Job automatique :
-    - Passe les missions 'filled' en 'completed' dès que l'heure de fin est dépassée
-      (en se basant sur la dernière date de la mission + end_time).
-    - Si une mission est déjà 'completed' depuis plus de 24h sans prolongation,
-      elle est définitivement clôturée (statut 'completed', champ 'extension_expired' = True).
-    """
-    try:
-        now = DateUtils.now()
-        # 1. Passer filled -> completed si l'heure de fin est dépassée
-        filled_shifts = await db.shifts.find({"status": ShiftStatus.FILLED}).to_list(None)
-        for shift in filled_shifts:
-            shift_dates = shift.get("dates", [])
-            if not shift_dates:
-                continue
-            last_date_str = sorted(shift_dates)[-1]
-            end_time_str = shift.get("end_time", "23:59")
-            try:
-                if "T" in last_date_str:
-                    last_date = datetime.fromisoformat(last_date_str.replace("Z", "+00:00")).date()
-                else:
-                    last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
-                eh, em = map(int, end_time_str.split(":"))
-                shift_end_dt = datetime(
-                    last_date.year, last_date.month, last_date.day,
-                    eh, em, tzinfo=timezone.utc
-                )
-                if now >= shift_end_dt:
-                    await db.shifts.update_one(
-                        {"id": shift["id"]},
-                        {"$set": {
-                            "status": ShiftStatus.COMPLETED,
-                            "completed_at": DateUtils.to_iso(now),
-                            "extension_deadline": DateUtils.to_iso(shift_end_dt + timedelta(hours=24))
-                        }}
-                    )
-                    # Mettre à jour la candidature acceptée en completed
-                    await db.applications.update_many(
-                        {"shift_id": shift["id"], "status": ApplicationStatus.ACCEPTED},
-                        {"$set": {"status": ApplicationStatus.COMPLETED}}
-                    )
-                    # Créer la facture automatiquement
-                    accepted_app = await db.applications.find_one({"shift_id": shift["id"], "status": ApplicationStatus.COMPLETED})
-                    if accepted_app:
-                        await create_invoice_for_completed_shift(shift["id"], accepted_app["worker_id"])
-                    logger.info(f"Shift {shift['id']} auto-completed (end time passed)")
-            except Exception as e:
-                logger.error(f"auto_complete_shifts error for shift {shift.get('id')}: {e}")
-
-        # 2. Expirer la fenêtre de prolongation : completed depuis > 24h sans prolongation
-        completed_shifts = await db.shifts.find({
-            "status": ShiftStatus.COMPLETED,
-            "extension_expired": {"$ne": True}
-        }).to_list(None)
-        for shift in completed_shifts:
-            deadline_str = shift.get("extension_deadline")
-            if not deadline_str:
-                continue
-            try:
-                deadline = datetime.fromisoformat(deadline_str.replace("Z", "+00:00"))
-                if now >= deadline:
-                    await db.shifts.update_one(
-                        {"id": shift["id"]},
-                        {"$set": {"extension_expired": True}}
-                    )
-                    logger.info(f"Shift {shift['id']} extension window expired")
-            except Exception as e:
-                logger.error(f"auto_complete_shifts extension expiry error for shift {shift.get('id')}: {e}")
-    except Exception as e:
-        logger.error(f"Erreur auto_complete_shifts: {e}")
-
-
 async def auto_generate_ratings():
     """Job : génère automatiquement un avis 5 étoiles si l'hôtel n'a pas laissé d'avis 30 jours après la fin d'une mission"""
     try:
@@ -1956,14 +1877,22 @@ async def auto_generate_ratings():
 @api_router.get("/ratings/public")
 @api_router.get("/reviews")
 async def get_public_ratings(limit: int = Query(20), verified: Optional[bool] = Query(None)):
-    """Retourne les avis vérifiés pour la landing page"""
-    query = {"visible": True}
+    """Retourne les avis vérifiés pour la landing page (uniquement ceux avec for_landing_page=true)"""
+    query = {"visible": True, "for_landing_page": True}
     if verified is not None:
         query["verified"] = verified
     else:
         query["verified"] = True  # Par défaut, uniquement les avis vérifiés
     reviews = await db.ratings.find(query).sort("created_at", -1).to_list(limit)
     return [clean_mongo_doc(r) for r in reviews]
+
+@api_router.get("/hotel/my-ratings")
+async def get_hotel_ratings(current_user: dict = Depends(get_current_user)):
+    """Retourne les avis laissés par l'hôtel courant"""
+    if current_user.get("role") != "hotel":
+        raise HTTPException(status_code=403, detail="Seuls les hôtels peuvent accéder à leurs avis")
+    ratings = await db.ratings.find({"hotel_id": current_user["id"]}).sort("created_at", -1).to_list(100)
+    return [clean_mongo_doc(r) for r in ratings]
 
 @api_router.get("/workers/{worker_id}/public")
 async def get_worker_public_profile(worker_id: str, current_user: dict = Depends(get_current_user)):
@@ -2170,112 +2099,13 @@ async def trigger_auto_ratings(current_user: dict = Depends(require_admin)):
     await auto_generate_ratings()
     return {"status": "success", "message": "Job exécuté"}
 
-@api_router.post("/admin/jobs/auto-complete")
-async def trigger_auto_complete(current_user: dict = Depends(require_admin)):
-    """Déclenche manuellement le job de complétion automatique des missions"""
-    await auto_complete_shifts()
-    return {"status": "success", "message": "Job exécuté"}
-
-@api_router.post("/shifts/{shift_id}/extend")
-async def extend_shift(shift_id: str, payload: Dict[Any, Any], current_user: dict = Depends(get_current_user)):
-    """
-    Permet à un hôtel de prolonger une mission terminée dans les 24h suivant sa fin.
-    Le payload doit contenir :
-      - new_end_date : nouvelle date de fin (YYYY-MM-DD)
-      - new_end_time : nouvelle heure de fin (HH:MM)
-      - new_dates : liste complète des nouvelles dates (optionnel, si on ajoute des jours)
-    """
-    if current_user["role"] != UserRole.HOTEL:
-        raise HTTPException(status_code=403, detail="Réservé aux hôtels")
-
-    shift = await db.shifts.find_one({"id": shift_id})
-    if not shift:
-        raise HTTPException(status_code=404, detail="Mission non trouvée")
-    if shift.get("hotel_id") != current_user["id"]:
-        raise HTTPException(status_code=403, detail="Non autorisé")
-    if shift.get("status") != ShiftStatus.COMPLETED:
-        raise HTTPException(status_code=400, detail="Seules les missions terminées peuvent être prolongées")
-    if shift.get("extension_expired"):
-        raise HTTPException(status_code=400, detail="La fenêtre de prolongation de 24h est expirée")
-
-    # Vérifier que nous sommes dans les 24h suivant la fin
-    deadline_str = shift.get("extension_deadline")
-    if deadline_str:
-        deadline = datetime.fromisoformat(deadline_str.replace("Z", "+00:00"))
-        if DateUtils.now() > deadline:
-            await db.shifts.update_one({"id": shift_id}, {"$set": {"extension_expired": True}})
-            raise HTTPException(status_code=400, detail="La fenêtre de prolongation de 24h est expirée")
-
-    new_end_date = payload.get("new_end_date")
-    new_end_time = payload.get("new_end_time")
-    new_dates = payload.get("new_dates")  # optionnel
-
-    if not new_end_date or not new_end_time:
-        raise HTTPException(status_code=400, detail="new_end_date et new_end_time sont requis")
-
-    # Valider que la nouvelle date n'est pas dans le passé
-    today = DateUtils.now().date()
-    try:
-        new_end_date_obj = datetime.strptime(new_end_date, "%Y-%m-%d").date()
-        if new_end_date_obj < today:
-            raise HTTPException(status_code=400, detail="La nouvelle date de fin ne peut pas être dans le passé")
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Format de date invalide pour new_end_date")
-
-    update_data: dict = {
-        "status": ShiftStatus.FILLED,
-        "end_time": new_end_time,
-        "extended_at": DateUtils.to_iso(DateUtils.now()),
-        "extension_expired": False,
-        "extension_deadline": None,
-        "completed_at": None,
-    }
-
-    if new_dates:
-        # Valider toutes les nouvelles dates
-        for d_str in new_dates:
-            try:
-                d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
-                if d_obj < today:
-                    raise HTTPException(status_code=400, detail=f"La date {d_str} est dans le passé")
-            except ValueError:
-                raise HTTPException(status_code=400, detail=f"Format de date invalide : {d_str}")
-        update_data["dates"] = new_dates
-    else:
-        # Ajouter la nouvelle date de fin aux dates existantes si elle n'y est pas
-        existing_dates = shift.get("dates", [])
-        if new_end_date not in existing_dates:
-            existing_dates = existing_dates + [new_end_date]
-        update_data["dates"] = existing_dates
-
-    await db.shifts.update_one({"id": shift_id}, {"$set": update_data})
-    # Repasser la candidature en accepted
-    await db.applications.update_many(
-        {"shift_id": shift_id, "status": ApplicationStatus.COMPLETED},
-        {"$set": {"status": ApplicationStatus.ACCEPTED}}
-    )
-
-    updated_shift = await db.shifts.find_one({"id": shift_id})
-    return clean_mongo_doc(updated_shift)
-
 app.include_router(api_router)
 
 @app.on_event("startup")
 async def startup_event():
-    """Exécute les jobs au démarrage et lance la boucle périodique"""
+    """Exécute les jobs au démarrage"""
     import asyncio
-
-    async def periodic_jobs():
-        """Boucle toutes les 5 minutes pour les jobs automatiques"""
-        while True:
-            try:
-                await auto_complete_shifts()
-                await auto_generate_ratings()
-            except Exception as e:
-                logger.error(f"Erreur periodic_jobs: {e}")
-            await asyncio.sleep(300)  # toutes les 5 minutes
-
-    asyncio.create_task(periodic_jobs())
+    asyncio.create_task(auto_generate_ratings())
 
 if __name__ == "__main__":
     import uvicorn

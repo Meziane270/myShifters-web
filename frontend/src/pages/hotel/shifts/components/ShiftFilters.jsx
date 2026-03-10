@@ -11,30 +11,33 @@ export default function ShiftFilters({
                                          statusFilter,
                                          onStatusChange,
                                          serviceFilter,
-                                         onServiceChange
+                                         onServiceChange,
+                                         hideStatus = false
                                      }) {
     const handleStatusChange = useCallback((value) => {
-        onStatusChange(value);
+        if (onStatusChange) onStatusChange(value);
     }, [onStatusChange]);
 
     const handleServiceChange = useCallback((value) => {
-        onServiceChange(value);
+        if (onServiceChange) onServiceChange(value);
     }, [onServiceChange]);
 
     return (
         <div className="flex flex-col gap-3 sm:flex-row">
-            <Select value={statusFilter} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-full sm:w-[220px] bg-background border-border text-foreground">
-                    <SelectValue placeholder="Statut" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    <SelectItem value="open">Ouvertes</SelectItem>
-                    <SelectItem value="filled">Pourvues</SelectItem>
-                    <SelectItem value="completed">Terminées</SelectItem>
-                    <SelectItem value="cancelled">Annulées</SelectItem>
-                </SelectContent>
-            </Select>
+            {!hideStatus && (
+                <Select value={statusFilter} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-full sm:w-[220px] bg-background border-border text-foreground">
+                        <SelectValue placeholder="Statut" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                        <SelectItem value="all">Tous les statuts</SelectItem>
+                        <SelectItem value="open">Ouvertes</SelectItem>
+                        <SelectItem value="filled">Pourvues</SelectItem>
+                        <SelectItem value="completed">Terminées</SelectItem>
+                        <SelectItem value="cancelled">Annulées</SelectItem>
+                    </SelectContent>
+                </Select>
+            )}
 
             <Select value={serviceFilter} onValueChange={handleServiceChange}>
                 <SelectTrigger className="w-full sm:w-[220px] bg-background border-border text-foreground">

@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { 
-    Search, 
-    Filter, 
-    MapPin, 
-    Calendar, 
-    Clock, 
+import {
+    Search,
+    Filter,
+    MapPin,
+    Calendar,
+    Clock,
     Briefcase,
     CheckCircle2,
     Loader2,
     ArrowRight,
     Lock,
     FileText,
-    Euro
+    History
 } from "lucide-react";
 import { useAuth } from "../../../context/AuthContext";
 import axios from "axios";
@@ -29,7 +29,7 @@ export default function MissionsPage() {
     const [selectedJob, setSelectedJob] = useState("Tous");
     const [activeTab, setActiveTab] = useState("available");
     const [loading, setLoading] = useState(true);
-    
+
     // Pour la modal de détails
     const [selectedShift, setSelectedShift] = useState(null);
     const [modalOpen, setModalOpen] = useState(false);
@@ -64,36 +64,36 @@ export default function MissionsPage() {
     const calculateTotalPay = (mission) => {
         if (!mission) return 0;
         const rate = mission.hourly_rate || 0;
-        
+
         // Calcul de la durée en heures
         let duration = 0;
         if (mission.start_time && mission.end_time) {
             const [startH, startM] = mission.start_time.split(':').map(Number);
             const [endH, endM] = mission.end_time.split(':').map(Number);
-            
+
             let startMinutes = startH * 60 + startM;
             let endMinutes = endH * 60 + endM;
-            
+
             if (endMinutes <= startMinutes) {
                 endMinutes += 24 * 60; // Mission de nuit
             }
             duration = (endMinutes - startMinutes) / 60;
         }
-        
+
         const days = Array.isArray(mission.dates) ? mission.dates.length : 1;
         return (rate * duration * days).toFixed(2);
     };
 
     const availableMissions = useMemo(() => {
         return allMissions.filter(mission => {
-            const matchesSearch = (mission.hotel_name || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                 (mission.title || "").toLowerCase().includes(searchQuery.toLowerCase());
-            
+            const matchesSearch = (mission.hotel_name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (mission.title || "").toLowerCase().includes(searchQuery.toLowerCase());
+
             let matchesJob = selectedJob === "Tous";
             if (!matchesJob) {
                 const serviceType = (mission.service_type || "").toLowerCase();
                 const jobLower = selectedJob.toLowerCase();
-                
+
                 if (jobLower === "réception") matchesJob = serviceType === "reception";
                 else if (jobLower === "housekeeping") matchesJob = serviceType === "housekeeping";
                 else if (jobLower === "restauration & salle") matchesJob = serviceType === "restaurant";
@@ -105,19 +105,29 @@ export default function MissionsPage() {
         });
     }, [allMissions, myApplications, searchQuery, selectedJob]);
 
+    // Missions confirmées : applications acceptées dont le shift n'est pas terminé ni annulé
     const confirmedMissions = useMemo(() => {
-        return myApplications.filter(app => app.status === "accepted");
-    }, [myApplications]);
-
-    const applicationsMissions = useMemo(() => {
-        return myApplications.filter(app => app.status === "pending");
-    }, [myApplications]);
-
-    // Missions annulées : applications dont le shift associé est annulé
-    const cancelledMissions = useMemo(() => {
         return myApplications.filter(app => {
             const shift = app.shift_details;
-            return shift && shift.status === "cancelled";
+            return app.status === "accepted" && shift && shift.status !== "completed" && shift.status !== "cancelled";
+        });
+    }, [myApplications]);
+
+    // Candidatures en attente : masquer les missions annulées
+    const applicationsMissions = useMemo(() => {
+        return myApplications.filter(app => {
+            const shift = app.shift_details;
+            return app.status === "pending" && shift && shift.status !== "cancelled";
+        });
+    }, [myApplications]);
+
+    // Missions terminées : inclut les missions pourvues terminées ainsi que les missions pourvues annulées
+    const completedMissions = useMemo(() => {
+        return myApplications.filter(app => {
+            const shift = app.shift_details;
+            // On ne garde que si le worker a été accepté (pourvu)
+            if (app.status !== "accepted") return false;
+            return shift && (shift.status === "completed" || shift.status === "cancelled");
         });
     }, [myApplications]);
 
@@ -148,21 +158,21 @@ export default function MissionsPage() {
                 </div>
             </div>
 
-            {/* Navigation par Onglets - Disponibles (à gauche) - Candidatures - Confirmées */}
+            {/* Navigation par Onglets */}
             <div className="flex flex-wrap items-center gap-2 p-2 bg-white border border-slate-100 rounded-[2rem] shadow-sm">
                 {[
                     { id: 'available', label: 'Disponibles', icon: Briefcase, color: 'text-violet-600' },
                     { id: 'applications', label: 'Candidatures', icon: FileText, color: 'text-violet-500' },
                     { id: 'confirmed', label: 'Confirmées', icon: CheckCircle2, color: 'text-emerald-500' },
-                    { id: 'cancelled', label: 'Annulées', icon: Euro, color: 'text-red-500' }
+                    { id: 'completed', label: 'Terminées', icon: History, color: 'text-slate-500' }
                 ].map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-bold text-sm transition-all ${
-                            activeTab === tab.id 
-                            ? 'bg-slate-900 text-white shadow-xl shadow-slate-200' 
-                            : 'text-slate-500 hover:bg-slate-50'
+                            activeTab === tab.id
+                                ? 'bg-slate-900 text-white shadow-xl shadow-slate-200'
+                                : 'text-slate-500 hover:bg-slate-50'
                         }`}
                     >
                         <tab.icon className={`h-5 w-5 ${activeTab === tab.id ? 'text-white' : tab.color}`} />
@@ -177,9 +187,9 @@ export default function MissionsPage() {
                     <div className="flex flex-col md:flex-row gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                            <input 
-                                type="text" 
-                                placeholder="Rechercher par hôtel ou métier..." 
+                            <input
+                                type="text"
+                                placeholder="Rechercher par hôtel ou métier..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-16 pr-6 py-5 bg-white border border-slate-100 rounded-[2rem] outline-none focus:border-violet-600/30 focus:ring-4 focus:ring-violet-600/5 transition-all font-medium text-sm shadow-sm"
@@ -196,9 +206,9 @@ export default function MissionsPage() {
                                 key={job}
                                 onClick={() => setSelectedJob(job)}
                                 className={`px-6 py-3 rounded-xl font-bold text-xs transition-all ${
-                                    selectedJob === job 
-                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20' 
-                                    : 'bg-white text-slate-500 border border-slate-100 hover:border-violet-600/30'
+                                    selectedJob === job
+                                        ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
+                                        : 'bg-white text-slate-500 border border-slate-100 hover:border-violet-600/30'
                                 }`}
                             >
                                 {job}
@@ -230,13 +240,13 @@ export default function MissionsPage() {
                 {activeTab === 'available' && (
                     availableMissions.length > 0 ? (
                         availableMissions.map((mission) => (
-                            <div 
-                                key={mission.id} 
+                            <div
+                                key={mission.id}
                                 onClick={() => handleOpenDetails(mission)}
                                 className="group bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-8 cursor-pointer"
                             >
                                 <div className="flex items-center gap-8">
-                                    <div className="h-20 w-20 rounded-3xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-violet-600/10 group-hover:text-violet-600 transition-all">
+                                    <div className="h-20 w-20 rounded-3xl bg-slate-50 flex items-center justify-center text-slate-200 group-hover:bg-violet-50 group-hover:text-violet-600 transition-all">
                                         <Briefcase className="h-10 w-10" />
                                     </div>
                                     <div>
@@ -244,7 +254,7 @@ export default function MissionsPage() {
                                         <p className="text-violet-600 font-bold text-sm mt-1">{mission.hotel_name}</p>
                                         <div className="flex flex-wrap gap-6 mt-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
                                             <span className="flex items-center gap-2">
-                                                <Calendar className="h-4 w-4" /> 
+                                                <Calendar className="h-4 w-4" />
                                                 {Array.isArray(mission.dates) ? `${mission.dates.length} date(s)` : mission.date || "Date non définie"}
                                             </span>
                                             <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> {mission.start_time} - {mission.end_time}</span>
@@ -257,7 +267,7 @@ export default function MissionsPage() {
                                         <p className="text-3xl font-black text-slate-900">{calculateTotalPay(mission)} €</p>
                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total estimé</p>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleOpenDetails(mission);
@@ -294,19 +304,19 @@ export default function MissionsPage() {
                     )
                 )}
 
-                {activeTab === 'cancelled' && (
-                    cancelledMissions.length > 0 ? (
-                        cancelledMissions.map((app) => (
-                            <MissionItem key={app.id} mission={app} type="cancelled" onClick={() => handleOpenDetails(app.shift_details, app)} />
+                {activeTab === 'completed' && (
+                    completedMissions.length > 0 ? (
+                        completedMissions.map((app) => (
+                            <MissionItem key={app.id} mission={app} type="completed" onClick={() => handleOpenDetails(app.shift_details, app)} />
                         ))
                     ) : (
-                        <EmptyState icon={Euro} text="Aucune mission annulée." />
+                        <EmptyState icon={History} text="Aucune mission terminée." />
                     )
                 )}
             </div>
 
             {/* Modal de détails */}
-            <ShiftDetailModal 
+            <ShiftDetailModal
                 shift={selectedShift}
                 application={selectedApplication}
                 isOpen={modalOpen}
@@ -325,21 +335,33 @@ function MissionItem({ mission, type, onClick }) {
     const statusConfig = {
         accepted: { label: "Confirmée", color: "bg-emerald-100 text-emerald-700" },
         pending: { label: "En attente", color: "bg-violet-100 text-violet-700" },
+        completed: { label: "Terminée", color: "bg-sky-100 text-sky-700" },
         cancelled: { label: "Annulée", color: "bg-red-100 text-red-700" }
     };
 
-    const isCancelled = type === 'cancelled' || mission?.shift_details?.status === 'cancelled';
-    const config = isCancelled ? statusConfig.cancelled : (statusConfig[mission.status] || statusConfig.pending);
+    const shiftStatus = mission?.shift_details?.status;
+    const isCancelled = shiftStatus === 'cancelled';
+    const isCompleted = shiftStatus === 'completed';
+
+    let config = statusConfig.pending;
+    if (isCancelled) config = statusConfig.cancelled;
+    else if (isCompleted) config = statusConfig.completed;
+    else if (mission.status === 'accepted') config = statusConfig.accepted;
 
     return (
-        <div 
+        <div
             onClick={onClick}
             className={`p-8 rounded-[2.5rem] border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer hover:shadow-md transition-all ${
-                isCancelled ? 'bg-red-50 border-red-100' : 'bg-white border-slate-100'
+                isCancelled ? 'bg-red-50 border-red-100' : isCompleted ? 'bg-sky-50 border-sky-100' : 'bg-white border-slate-100'
             }`}
         >
             <div className="flex items-center gap-6">
-                <div className={`h-16 w-16 rounded-2xl flex items-center justify-center ${isCancelled ? 'bg-red-100 text-red-500' : type === 'confirmed' ? 'bg-emerald-50 text-emerald-500' : 'bg-violet-50 text-violet-500'}`}>
+                <div className={`h-16 w-16 rounded-2xl flex items-center justify-center ${
+                    isCancelled ? 'bg-red-100 text-red-500' :
+                        isCompleted ? 'bg-sky-100 text-sky-500' :
+                            type === 'confirmed' ? 'bg-emerald-50 text-emerald-500' :
+                                'bg-violet-50 text-violet-500'
+                }`}>
                     <Briefcase className="h-8 w-8" />
                 </div>
                 <div>
