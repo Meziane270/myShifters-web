@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Body
+from fastapi import FastAPI, APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, Body, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1088,10 +1089,12 @@ async def download_mission_report(invoice_id: str, current_user: dict = Depends(
 
     try:
         pdf_bytes = generate_mission_report_pdf(mission_data, worker_data, hotel_data)
-        return StreamingResponse(
-            io.BytesIO(pdf_bytes),
+        return Response(
+            content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=releve_mission_{shift.get('id')}.pdf"}
+            headers={
+                "Content-Disposition": f"inline; filename=releve_mission_{shift.get('id')}.pdf"
+            }
         )
     except Exception as e:
         logger.error(f"Erreur génération relevé de mission: {e}")
@@ -1166,10 +1169,12 @@ async def download_invoice_pdf(invoice_id: str, current_user: dict = Depends(get
 
     try:
         pdf_bytes = generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data)
-        return StreamingResponse(
-            io.BytesIO(pdf_bytes),
+        return Response(
+            content=pdf_bytes,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename=facture_{invoice.get('id')}.pdf"}
+            headers={
+                "Content-Disposition": f"inline; filename=facture_{invoice.get('id')}.pdf"
+            }
         )
     except Exception as e:
         logger.error(f"Erreur génération facture: {e}")

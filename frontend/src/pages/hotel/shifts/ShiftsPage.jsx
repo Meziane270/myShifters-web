@@ -37,7 +37,7 @@ export default function ShiftsPage() {
 
     const fetchShifts = useCallback(async () => {
         try {
-            const response = await axios.get(`${API}/hotel/shifts`, {
+            const response = await axios.get(`${API}/shifts/hotel`, {
                 headers: getAuthHeader()
             });
             setShifts(response.data || []);

@@ -175,47 +175,35 @@ function InvoiceCard({ item }) {
 
     const statusCfg = getStatusConfig(item.status);
 
-    const handleDownloadReport = async () => {
+    const handlePreviewReport = async () => {
         try {
             const response = await fetch(
                 `${process.env.REACT_APP_BACKEND_URL}/api/invoices/${item.id}/mission-report`,
                 { headers: getAuthHeader() }
             );
-            if (!response.ok) throw new Error('Erreur lors du téléchargement');
+            if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `releve_mission_${item.id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Relevé de mission téléchargé');
+            window.open(url, '_blank');
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
         } catch (err) {
-            toast.error('Erreur lors du téléchargement');
+            toast.error('Erreur lors de la prévisualisation');
         }
     };
 
-    const handleDownloadInvoice = async () => {
+    const handlePreviewInvoice = async () => {
         try {
             const response = await fetch(
                 `${process.env.REACT_APP_BACKEND_URL}/api/invoices/${item.id}/invoice-pdf`,
                 { headers: getAuthHeader() }
             );
-            if (!response.ok) throw new Error('Erreur lors du téléchargement');
+            if (!response.ok) throw new Error('Erreur lors de la prévisualisation');
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `facture_${item.id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-            toast.success('Facture téléchargée');
+            window.open(url, '_blank');
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
         } catch (err) {
-            toast.error('Erreur lors du téléchargement');
+            toast.error('Erreur lors de la prévisualisation');
         }
     };
 
@@ -269,14 +257,14 @@ function InvoiceCard({ item }) {
 
                     <div className="flex flex-col items-center gap-3">
                         <button
-                            onClick={() => handleDownloadReport()}
+                            onClick={() => handlePreviewReport()}
                             className="px-6 py-3 bg-violet-600 text-white rounded-xl font-bold text-sm hover:bg-violet-700 transition-all shadow-lg shadow-violet-600/20 flex items-center gap-2 min-w-[180px] justify-center"
                         >
                             <FileCheck className="h-4 w-4" />
                             Relevé de mission
                         </button>
                         <button
-                            onClick={() => handleDownloadInvoice()}
+                            onClick={() => handlePreviewInvoice()}
                             className="text-violet-600 font-bold text-sm hover:text-violet-800 transition-colors"
                         >
                             Facture
