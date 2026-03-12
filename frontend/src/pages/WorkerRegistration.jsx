@@ -395,7 +395,7 @@ export default function WorkerRegistration({
 
     // Synchronisation automatique de l'adresse de facturation si "same_as_personal" est coché
     useEffect(() => {
-        if (workerStep === 2 && formData.same_as_personal) {
+        if (workerStep === 2 && formData.has_ae_status && formData.same_as_personal) {
             setFormData((prev) => ({
                 ...prev,
                 billing_address: prev.address || "",
@@ -403,7 +403,7 @@ export default function WorkerRegistration({
                 billing_postal_code: prev.postal_code || "",
             }));
         }
-    }, [workerStep, formData.same_as_personal, formData.address, formData.city, formData.postal_code, setFormData]);
+    }, [workerStep, formData.has_ae_status, formData.same_as_personal, formData.address, formData.city, formData.postal_code, setFormData]);;
 
     return (
         <div className="rounded-3xl border bg-background/55 p-6 shadow-xl backdrop-blur sm:p-8">

@@ -1135,14 +1135,51 @@ async def download_invoice_pdf(invoice_id: str, current_user: dict = Depends(get
         raise HTTPException(status_code=404, detail="Hôtel non trouvé")
     hotel = clean_mongo_doc(hotel)
 
+    # Récupérer le taux de commission admin
+    platform_settings = await db.settings.find_one({"type": "platform"})
+    commission_rate = float(platform_settings.get("commission_rate", 0.15)) if platform_settings else 0.15
+
+    # Calculer la référence mission (position dans l'ordre de création)
+    mission_reference = shift.get("reference")
+    if not mission_reference:
+        shift_created_at = shift.get("created_at")
+        if shift_created_at:
+            count = await db.shifts.count_documents({"created_at": {"$lte": shift_created_at}})
+            mission_reference = count
+        else:
+            mission_reference = shift.get("id")
+
+    # Générer le numéro de facture (format: FAC-YYYYMMDD-XXXX)
+    invoice_number = invoice.get("invoice_number")
+    if not invoice_number:
+        # Compter les factures pour générer un numéro séquentiel
+        invoice_created_at = invoice.get("created_at")
+        if invoice_created_at:
+            # Extraire la date
+            try:
+                if isinstance(invoice_created_at, str):
+                    invoice_date = datetime.fromisoformat(invoice_created_at.replace("Z", "+00:00"))
+                else:
+                    invoice_date = invoice_created_at
+                date_str = invoice_date.strftime("%Y%m%d")
+            except:
+                date_str = datetime.now().strftime("%Y%m%d")
+
+            # Compter les factures créées avant celle-ci
+            count = await db.invoices.count_documents({"created_at": {"$lte": invoice_created_at}})
+            invoice_number = f"FAC-{date_str}-{count:04d}"
+        else:
+            invoice_number = f"FAC-{datetime.now().strftime('%Y%m%d')}-{invoice.get('id')[:4]}"
+
     # Préparer les données pour la génération du PDF
     invoice_data = {
-        "invoice_number": invoice.get("id"),
+        "invoice_number": invoice_number,
         "created_at": invoice.get("created_at")
     }
 
     mission_data = {
         "id": shift.get("id"),
+        "reference": mission_reference,
         "dates": shift.get("dates", []),
         "start_time": shift.get("start_time"),
         "end_time": shift.get("end_time"),
@@ -1174,13 +1211,11 @@ async def download_invoice_pdf(invoice_id: str, current_user: dict = Depends(get
     }
 
     try:
-        pdf_bytes = generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data)
+        pdf_bytes = generate_invoice_pdf(invoice_data, mission_data, worker_data, hotel_data, commission_rate)
         return StreamingResponse(
             io.BytesIO(pdf_bytes),
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f"inline; filename=facture_{invoice_id}.pdf"
-            }
+            headers={"Content-Disposition": f"attachment; filename=facture_{invoice_number}.pdf"}
         )
     except Exception as e:
         logger.error(f"Erreur génération facture: {e}")

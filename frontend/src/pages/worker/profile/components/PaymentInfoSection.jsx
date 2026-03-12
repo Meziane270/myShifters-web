@@ -28,14 +28,12 @@ export default function PaymentInfoSection({
 
     // Synchronisation avec les props
     useEffect(() => {
-        if (payoutAccount) {
-            setPayoutForm({
-                iban: payoutAccount.iban || "",
-                bic: payoutAccount.bic || "",
-                status: payoutAccount.status || "pending"
-            });
-        }
-    }, [payoutAccount]);
+        setPayoutForm({
+            iban: payoutAccount?.iban || "",
+            bic: payoutAccount?.bic || "",
+            status: payoutAccount?.status || "pending"
+        });
+    }, [payoutAccount?.iban, payoutAccount?.bic, payoutAccount?.status]);
 
     useEffect(() => {
         if (aeInfo) {
